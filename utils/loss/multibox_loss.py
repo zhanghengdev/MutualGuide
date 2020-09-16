@@ -4,9 +4,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
-from box import match, mutual_match, encode, decode
-from balanced_l1_loss import BalancedL1Loss
-from focal_loss import FocalLoss
+from ..box import match, mutual_match, encode, decode
+from .balanced_l1_loss import BalancedL1Loss
+from .focal_loss import FocalLoss
 
 
 class MultiBoxLoss(nn.Module):

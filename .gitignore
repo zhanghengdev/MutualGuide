@@ -11,6 +11,7 @@ __pycache__/
 .Python
 build/
 
-eval/
-weights/
-datasets/
+eval
+weights
+datasets
+job*

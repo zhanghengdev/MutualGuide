@@ -48,7 +48,7 @@ parser.add_argument('--lr', default=1e-2, type=float)
 parser.add_argument('--warm_iter', default=500, type=int)
 parser.add_argument('--trained_model', help='Location to trained model')
 args = parser.parse_args()
-print args
+print(args)
 
 
 def adjust_learning_rate(
@@ -91,7 +91,7 @@ def load_dataset():
                                AnnotationTransform(),
                                dataset_name='VOC0712trainval')
         epoch_size = len(dataset) // args.batch_size
-        max_iter = 250 * epoch_size * 4
+        max_iter = 250 * epoch_size
         testset = VOCDetection(VOCroot, [('2007', 'test')], None)
     elif args.dataset == 'COCO':
         from data import COCOroot, COCODetection, COCO_CLASSES
@@ -137,7 +137,7 @@ def save_weights(model):
         args.base_anchor_size,
         ('_MG' if args.mutual_guide else ''),
         ))
-    print 'Saving to {}'.format(save_path)
+    print('Saving to {}'.format(save_path))
     torch.save(model.state_dict(), save_path)
 
 
@@ -152,7 +152,7 @@ def eval_model(
 
     # Testing after training
 
-    print 'Start Evaluation...'
+    print('Start Evaluation...')
     model.eval()
     detector = Detect(num_classes)
     transform = BaseTransform(args.size, (104, 117, 123), (2, 0, 1))
@@ -207,27 +207,26 @@ def eval_model(
             _t['im_detect'].clear()
             _t['im_nms'].clear()
         if i % math.floor(num_images / 10) == 0 and i > 0:
-            print '[{}/{}]Time results: detect={:.2f}ms,nms={:.2f}ms,'.format(i,
-                    num_images, detect_time * 1000, nms_time * 1000)
+            print('[{}/{}]Time results: detect={:.2f}ms,nms={:.2f}ms,'.format(i,
+                    num_images, detect_time * 1000, nms_time * 1000))
     testset.evaluate_detections(all_boxes,
                                 'eval/{}/'.format(args.dataset))
-    print 'End of Evaluation...'
     model.train()
 
 
 if __name__ == '__main__':
 
-    print 'Loading Dataset...'
+    print('Loading Dataset...')
     (num_classes, dataset, epoch_size, max_iter, testset) = \
         load_dataset()
 
-    print 'Loading Network...'
+    print('Loading Network...')
     model = load_network(num_classes)
     num_param = sum(p.numel() for p in model.parameters()
                     if p.requires_grad)
-    print 'Total param is : {:e}'.format(num_param)
+    print('Total param is : {:e}'.format(num_param))
 
-    print 'Preparing Optimizer & AnchorBoxes...'
+    print('Preparing Optimizer & AnchorBoxes...')
     optimizer = optim.SGD(tencent_trick(model), lr=args.lr,
                           momentum=0.9, weight_decay=0.0005)
     criterion = MultiBoxLoss(num_classes,
@@ -238,12 +237,12 @@ if __name__ == '__main__':
         priors = priors.cuda()
 
     if args.trained_model is not None:
-        print ('loading weights from', args.trained_model)
+        print('loading weights from', args.trained_model)
         state_dict = torch.load(args.trained_model)
         model.load_state_dict(state_dict, strict=True)
     else:
-        print 'Training {} on {} with {} images'.format(args.version,
-                dataset.name, len(dataset))
+        print('Training {} on {} with {} images'.format(args.version,
+                dataset.name, len(dataset)))
         os.makedirs(args.save_folder, exist_ok=True)
         epoch = 0
         timer = Timer()
@@ -273,14 +272,14 @@ if __name__ == '__main__':
             load_time = timer.toc()
 
             if iteration % 100 == 0:
-                print 'Epoch {}, iter {}, lr {:.6f}, loss {:.2f}, time {:.2f}s, eta {:.2f}h'.format(
+                print('Epoch {}, iter {}, lr {:.6f}, loss {:.2f}, time {:.2f}s, eta {:.2f}h'.format(
                     epoch,
                     iteration,
                     optimizer.param_groups[0]['lr'],
                     loss.item(),
                     load_time,
                     load_time * (max_iter - iteration) / 3600,
-                    )
+                    ))
                 timer.clear()
         save_weights(model)
     eval_model(model, num_classes, testset, priors)

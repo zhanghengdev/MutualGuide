@@ -15,7 +15,7 @@ class PriorBox(object):
 
     def __init__(self, base_anchor, image):
         super(PriorBox, self).__init__()
-        repeat = (4 if size < 512 else 5)
+        repeat = (4 if image < 512 else 5)
         self.image = int(image)
         self.base_anchor = base_anchor
         self.feature_map = [math.ceil(self.image / 2 ** (3 + i))
