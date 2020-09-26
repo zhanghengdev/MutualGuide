@@ -222,6 +222,7 @@ if __name__ == '__main__':
 
     print('Loading Network...')
     model = load_network(num_classes)
+    print(model)
     num_param = sum(p.numel() for p in model.parameters()
                     if p.requires_grad)
     print('Total param is : {:e}'.format(num_param))
