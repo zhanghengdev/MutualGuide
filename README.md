@@ -1,7 +1,7 @@
 # Localize to Classify and Classify to Localize: Mutual Guidance in Object Detection
 By Heng Zhang, Elisa FROMONT, Sébastien LEFEVRE, Bruno AVIGNON
 ## Introduction
-Most deep learning object detectors are based on the anchor mechanism and resort to the Intersection over Union (IoU) between predefined anchor boxes and ground truth boxes to evaluate the matching quality between anchors and objects. In this paper, we question this use of IoU and propose a new anchor matching criterion guided, during the training phase, by the optimization of both the localization and the classification tasks: the predictions related to one task are used to dynamically assign sample anchors and improve the model on the other task, and vice versa. This is the Pytorch implementation of Mutual Guidance detectors. For more details, please refer to our [ACCV paper](xxxxxxxx).
+Most deep learning object detectors are based on the anchor mechanism and resort to the Intersection over Union (IoU) between predefined anchor boxes and ground truth boxes to evaluate the matching quality between anchors and objects. In this paper, we question this use of IoU and propose a new anchor matching criterion guided, during the training phase, by the optimization of both the localization and the classification tasks: the predictions related to one task are used to dynamically assign sample anchors and improve the model on the other task, and vice versa. This is the Pytorch implementation of Mutual Guidance detectors. For more details, please refer to our [ACCV paper](https://arxiv.org/pdf/2009.14085.pdf).
 <img align="center" src="https://github.com/zhangheng19931123/MutualGuide/blob/master/doc/compare.png">
 &nbsp;
 &nbsp;
@@ -30,6 +30,8 @@ Most deep learning object detectors are based on the anchor mechanism and resort
 | RetinaNet (VGG16) + PAFPN + MG | 320x320 | **35.3** | **52.4** | **37.3** | 175 | [Google Drive](xxxxxxxx) |
 | RetinaNet (VGG16) | 512x512 | 37.1 | 56.5 | 39.5 |  | [Google Drive](xxxxxxxx) |
 | RetinaNet (VGG16) + MG | 512x512 | **38.2** | **56.6** | **41.0** |  | [Google Drive](xxxxxxxx) |
+| RetinaNet (VGG16) + PAFPN | 512x512 |  |  |  |  | [Google Drive](xxxxxxxx) |
+| RetinaNet (VGG16) + PAFPN + MG | 512x512 | **39.4** | **57.5** | **42.3** |  | [Google Drive](xxxxxxxx) |
 ## Datasets
 First download the VOC and COCO dataset, you may find the sripts in `data/scripts/` useful.
 Then create a folder named `datasets` and link the downloaded datasets inside:
@@ -64,5 +66,3 @@ $ python3 main.py --version fssd --backbone vgg16 --dataset voc --size 320 --tra
                             rfbnet
 ```
 It will directly print the mAP, AP50 and AP50 results on VOC2007 Test or COCO2017 Val.
-## Citing Mutual Guide
-Please cite our paper in your publications if it helps your research.
