@@ -65,7 +65,4 @@ $ python3 main.py --version fssd --backbone vgg16 --dataset voc --size 320 --tra
 ```
 It will directly print the mAP, AP50 and AP50 results on VOC2007 Test or COCO2017 Val.
 ## Citing Mutual Guide
-Please cite our paper in your publications if it helps your research:
-    @InProceedings{ZHANG_2020_ACCV,
-    xxxxxxxxxxxxxxx
-    }
+Please cite our paper in your publications if it helps your research.
