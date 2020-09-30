@@ -83,18 +83,6 @@ class RetinaNet(nn.Module):
             from models.resnet_backbone import resnet18
             self.backbone = resnet18(pretrained=True)
             channels = (128, 256, 512)
-        elif backbone == 'resnet50':
-            from models.resnet_backbone import resnet50
-            self.backbone = resnet50(pretrained=True)
-            channels = (512, 1024, 2048)
-        elif backbone == 'resnet101':
-            from models.resnet_backbone import resnet101
-            self.backbone = resnet101(pretrained=True)
-            channels = (512, 1024, 2048)
-        elif backbone == 'densenet201':
-            from models.densenet_backbone import densenet201
-            self.backbone = densenet201(pretrained=True)
-            channels = (512, 1792, 1920)
         else:
             raise NotImplementedError
 
