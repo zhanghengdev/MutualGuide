@@ -7,31 +7,31 @@ Most deep learning object detectors are based on the anchor mechanism and resort
 &nbsp;
 ## Experimental results
 ### VOC2007 Test
-| **Detector** | **Resolution** | **mAP** | **AP50** | **AP75** | **FPS** (2080Ti) | **Trained model** |
-|:-------|:-----:|:-------:|:-------:|:-------:|:-------:|:-------:|
-| FSSD (VGG16) | 320x320 | 54.1 | 80.1 | 58.3 |  | [Google Drive](xxxxxxxx) |
-| FSSD (VGG16) + MG | 320x320 | **56.2** | **80.4** | **61.4** |  | [Google Drive](xxxxxxxx) |
-| RetinaNet (VGG16) | 320x320 | 55.2 | 80.2 | 59.6 |  | [Google Drive](xxxxxxxx) |
-| RetinaNet (VGG16) + MG | 320x320 | **57.7** | **81.1** | **62.9** |  | [Google Drive](xxxxxxxx) |
-| RFBNet (VGG16) | 320x320 | 55.6 | 80.9 | 59.6 |  | [Google Drive](xxxxxxxx) |
-| RFBNet (VGG16) + MG | 320x320 | **57.9** | **81.5** | **62.6** |  | [Google Drive](xxxxxxxx) |
-| RetinaNet (VGG16) + PAFPN | 320x320 | 58.1 | 81.7 | 63.3 | | [Google Drive](xxxxxxxx) |
-| RetinaNet (VGG16) + PAFPN + MG | 320x320 | **59.5** | **82.3** | **64.2** | | [Google Drive](xxxxxxxx) |
+| **Detector** | **Resolution** | **mAP** | **AP50** | **AP75** | **Trained model** |
+|:-------|:-----:|:-------:|:-------:|:-------:|:-------:|
+| FSSD (VGG16) | 320x320 | 54.1 | 80.1 | 58.3 | uploading |
+| FSSD (VGG16) + MG | 320x320 | **56.2** | **80.4** | **61.4** | uploading |
+| RetinaNet (VGG16) | 320x320 | 55.2 | 80.2 | 59.6 | uploading |
+| RetinaNet (VGG16) + MG | 320x320 | **57.7** | **81.1** | **62.9** | uploading |
+| RFBNet (VGG16) | 320x320 | 55.6 | 80.9 | 59.6 | uploading |
+| RFBNet (VGG16) + MG | 320x320 | **57.9** | **81.5** | **62.6** | uploading |
+| RetinaNet (VGG16) + PAFPN | 320x320 | 58.1 | 81.7 | 63.3 | uploading |
+| RetinaNet (VGG16) + PAFPN + MG | 320x320 | **59.5** | **82.3** | **64.2** | uploading |
 ### COCO2017 Val
-| **Detector** | **Resolution** | **mAP** | **AP50** | **AP75** | **FPS** (2080Ti) | **Trained model** |
+| **Detector** | **Resolution** | **mAP** | **AP50** | **AP75** | **FPS** (V100) | **Trained model** |
 |:-------|:-----:|:-------:|:-------:|:-------:|:-------:|:-------:|
-| FSSD (VGG16) | 320x320 | 31.1 | 48.9 | 32.7 |  | [Google Drive](xxxxxxxx) |
-| FSSD (VGG16) + MG | 320x320 | **32.0** | **49.3** | **33.9** |  | [Google Drive](xxxxxxxx) |
-| RetinaNet (VGG16) | 320x320 | 32.3 | 50.3 | 34.0 |  | [Google Drive](xxxxxxxx) |
-| RetinaNet (VGG16) + MG | 320x320 | **33.6** | **50.8** | **35.7** |  | [Google Drive](xxxxxxxx) |
-| RFBNet (VGG16) | 320x320 | 33.4 | 51.6 | 35.1 |  | [Google Drive](xxxxxxxx) |
-| RFBNet (VGG16) + MG | 320x320 | **34.6** | **52.0** | **36.8** |  | [Google Drive](xxxxxxxx) |
-| RetinaNet (VGG16) + PAFPN | 320x320 | 33.9 | 51.9 | 35.7 | 175 | [Google Drive](xxxxxxxx) |
-| RetinaNet (VGG16) + PAFPN + MG | 320x320 | **35.3** | **52.4** | **37.3** | 175 | [Google Drive](xxxxxxxx) |
-| RetinaNet (VGG16) | 512x512 | 37.1 | 56.5 | 39.5 |  | [Google Drive](xxxxxxxx) |
-| RetinaNet (VGG16) + MG | 512x512 | **38.2** | **56.6** | **41.0** |  | [Google Drive](xxxxxxxx) |
-| RetinaNet (VGG16) + PAFPN | 512x512 |  |  |  |  | [Google Drive](xxxxxxxx) |
-| RetinaNet (VGG16) + PAFPN + MG | 512x512 | **39.4** | **57.5** | **42.3** |  | [Google Drive](xxxxxxxx) |
+| FSSD (VGG16) | 320x320 | 31.1 | 48.9 | 32.7 | 365 | uploading |
+| FSSD (VGG16) + MG | 320x320 | **32.0** | **49.3** | **33.9** | 365 | uploading |
+| RetinaNet (VGG16) | 320x320 | 32.3 | 50.3 | 34.0 | 270 | uploading |
+| RetinaNet (VGG16) + MG | 320x320 | **33.6** | **50.8** | **35.7** | 270 | uploading |
+| RFBNet (VGG16) | 320x320 | 33.4 | 51.6 | 35.1 | 115 | uploading |
+| RFBNet (VGG16) + MG | 320x320 | **34.6** | **52.0** | **36.8** | 115 | uploading |
+| RetinaNet (VGG16) + PAFPN | 320x320 | 33.9 | 51.9 | 35.7 | 220 | [Google Drive](https://drive.google.com/file/d/13zBaiJ7LvlvPBogKB069OPhuV6JLKZzg/view?usp=sharing) |
+| RetinaNet (VGG16) + PAFPN + MG | 320x320 | **35.3** | **52.4** | **37.3** | 220 | [Google Drive](https://drive.google.com/file/d/1IC18t7wnnm1Wk8q9UpkPzGy2-g68_uyY/view?usp=sharing) |
+| RetinaNet (VGG16) | 512x512 | 37.1 | 56.5 | 39.5 | 250 | uploading |
+| RetinaNet (VGG16) + MG | 512x512 | **38.2** | **56.6** | **41.0** | 250 | uploading |
+| RetinaNet (VGG16) + PAFPN | 512x512 | running | running | running | 195 | uploading |
+| RetinaNet (VGG16) + PAFPN + MG | 512x512 | **39.4** | **57.5** | **42.3** | 195 | [Google Drive](https://drive.google.com/file/d/1kj0auR9w2zZeSSffFuS-MS0pX07Ro61T/view?usp=sharing) |
 ## Datasets
 First download the VOC and COCO dataset, you may find the sripts in `data/scripts/` useful.
 Then create a folder named `datasets` and link the downloaded datasets inside:
