@@ -30,7 +30,7 @@ Most deep learning object detectors are based on the anchor mechanism and resort
 | RetinaNet (VGG16) + PAFPN + MG | 320x320 | **35.3** | **52.4** | **37.3** | 220 | [Google Drive](https://drive.google.com/file/d/1IC18t7wnnm1Wk8q9UpkPzGy2-g68_uyY/view?usp=sharing) |
 | RetinaNet (VGG16) | 512x512 | 37.1 | 56.5 | 39.5 | 250 | |
 | RetinaNet (VGG16) + MG | 512x512 | **38.2** | **56.6** | **41.0** | 250 | |
-| RetinaNet (VGG16) + PAFPN | 512x512 | running | running | running | 195 | |
+| RetinaNet (VGG16) + PAFPN | 512x512 | 38.5 | 57.6 | 41.0 | 195 | [Google Drive](https://drive.google.com/file/d/1yBllIGiix3FF5njQzV39Uhbz4dSAJrgO/view?usp=sharing) |
 | RetinaNet (VGG16) + PAFPN + MG | 512x512 | **39.4** | **57.5** | **42.3** | 195 | [Google Drive](https://drive.google.com/file/d/1kj0auR9w2zZeSSffFuS-MS0pX07Ro61T/view?usp=sharing) |
 ## Datasets
 First download the VOC and COCO dataset, you may find the sripts in `data/scripts/` useful.
