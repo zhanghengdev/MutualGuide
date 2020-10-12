@@ -265,8 +265,9 @@ if __name__ == '__main__':
             images = Variable(images.cuda())
             targets = [Variable(anno.cuda()) for anno in targets]
             out = model(images)
-            (loss_l, loss_c) = criterion(out, priors, targets)
-            loss = loss_l + loss_c
+            (loss_l, loss_c) = criterion(out[:2], priors, targets)
+            fc_pred = out[-1]
+            loss = loss_l + loss_c + F.binary_cross_entropy_with_logits(fc_pred, fc_target)
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()

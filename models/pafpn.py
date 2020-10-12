@@ -12,7 +12,7 @@ class CEM(nn.Module):
 
     """Context Enhancement Module"""
 
-    def __init__(self, channels, fea_channel=256):
+    def __init__(self, channels, fea_channel=256, num_classes=20):
         super(CEM, self).__init__()
         self.cv1 = BasicConv(channels[0], fea_channel, kernel_size=1,
                              padding=0)
@@ -21,12 +21,15 @@ class CEM(nn.Module):
         self.gap = nn.AdaptiveAvgPool2d(1)
         self.cv3 = BasicConv(channels[1], fea_channel, kernel_size=1,
                              padding=0)
+        self.fc = nn.Linear(fea_channel, num_classes)
 
     def forward(self, inputs):
         C4_lat = self.cv1(inputs[0])
         C5_lat = self.cv2(inputs[1])
         Cglb_lat = self.cv3(self.gap(inputs[1]))
-        return C4_lat + C5_lat + Cglb_lat
+        fc_lat = torch.flatten(Cglb_lat, 1)
+        fc_lat = self.fc(fc_lat)
+        return C4_lat + C5_lat + Cglb_lat, fc_lat
 
 
 def fpn_feature_extractor(fpn_level, fea_channel=256):
@@ -110,7 +113,7 @@ class PAFPN(nn.Module):
 
         # Extra layers
 
-        self.ft_module = CEM(channels)
+        self.ft_module = CEM(channels, self.num_classes)
         self.pyramid_ext = fpn_feature_extractor(self.fpn_level)
         self.lateral_convs = lateral_convs(self.fpn_level)
         self.fpn_convs = fpn_convs(self.fpn_level)
@@ -144,7 +147,7 @@ class PAFPN(nn.Module):
         # backbone
 
         source_features = self.backbone(x)
-        x = self.ft_module(source_features)
+        x, fc = self.ft_module(source_features)
 
         # detection
 
@@ -177,10 +180,7 @@ class PAFPN(nn.Module):
 
         loc = torch.cat([o.view(o.size(0), -1) for o in loc], 1)
         conf = torch.cat([o.view(o.size(0), -1) for o in conf], 1)
-        return (loc.view(loc.size(0), -1, 4), conf.view(conf.size(0),
-                -1, self.num_classes))  # loc preds
-                                        # conf preds
-
+        return (loc.view(loc.size(0), -1, 4), conf.view(conf.size(0), -1, self.num_classes), fc)
 
 def build_net(size=320, num_classes=20, backbone='vgg16'):
 
