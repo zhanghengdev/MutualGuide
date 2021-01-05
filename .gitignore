@@ -14,5 +14,6 @@ build/
 eval
 weights
 datasets
+draw
 job*
 run*

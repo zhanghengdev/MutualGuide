@@ -6,6 +6,8 @@ import sys
 import argparse
 import math
 import numpy as np
+import cv2
+import random
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -47,6 +49,7 @@ parser.add_argument('--batch_size', default=32, type=int)
 parser.add_argument('--lr', default=1e-2, type=float)
 parser.add_argument('--warm_iter', default=500, type=int)
 parser.add_argument('--trained_model', help='Location to trained model')
+parser.add_argument('--draw', action='store_true', help='Draw detection results')
 args = parser.parse_args()
 print(args)
 
@@ -85,6 +88,7 @@ def tencent_trick(model):
 def load_dataset():
     if args.dataset == 'VOC':
         from data import VOCroot, VOCDetection, VOC_CLASSES
+        show_classes = VOC_CLASSES
         num_classes = len(VOC_CLASSES)
         train_sets = [('2007', 'trainval'), ('2012', 'trainval')]
         dataset = VOCDetection(VOCroot, train_sets, preproc(args.size),
@@ -95,6 +99,7 @@ def load_dataset():
         testset = VOCDetection(VOCroot, [('2007', 'test')], None)
     elif args.dataset == 'COCO':
         from data import COCOroot, COCODetection, COCO_CLASSES
+        show_classes = COCO_CLASSES
         num_classes = len(COCO_CLASSES)
         train_sets = [('2017', 'train')]
         dataset = COCODetection(COCOroot, train_sets,
@@ -104,7 +109,7 @@ def load_dataset():
         testset = COCODetection(COCOroot, [('2017', 'val')], None)
     else:
         raise NotImplementedError('Unkown dataset {}!'.format(args.dataset))
-    return (num_classes, dataset, epoch_size, max_iter, testset)
+    return (show_classes, num_classes, dataset, epoch_size, max_iter, testset)
 
 
 def load_network(num_classes):
@@ -146,6 +151,7 @@ def eval_model(
     num_classes,
     testset,
     priors,
+    show_classes,
     thresh=0.005,
     max_per_image=300,
     ):
@@ -160,6 +166,8 @@ def eval_model(
     all_boxes = [[[] for _ in range(num_images)] for _ in
                  range(num_classes)]
     rgbs = dict()
+    os.makedirs("draw/", exist_ok=True)
+    os.makedirs("draw/{}/".format(args.dataset), exist_ok=True)
     _t = {'im_detect': Timer(), 'im_nms': Timer()}
     for i in range(num_images):
         img = testset.pull_image(i)
@@ -203,6 +211,30 @@ def eval_model(
                     all_boxes[j][i] = all_boxes[j][i][keep, :]
         nms_time = _t['im_nms'].toc()
 
+        if args.draw:
+            for j in range(1, num_classes):
+                c_dets = all_boxes[j][i]
+                for line in c_dets:
+                    x1 = int(line[0])
+                    y1 = int(line[1])
+                    x2 = int(line[2])
+                    y2 = int(line[3])
+                    score = float(line[4])
+                    if score > .25:
+                        if j not in rgbs:
+                            r = random.randint(0,255)
+                            g = random.randint(0,255)
+                            b = random.randint(0,255)
+                            rgbs[j] = [r,g,b]
+                        rgb = rgbs[j]
+                        label = '{}{:.2f}'.format(show_classes[j], score)
+                        cv2.rectangle(img, (x1, y1), (x2, y2), rgb, 2)
+                        cv2.rectangle(img, (x1, y1-15), (x1+len(label)*9, y1), rgb, -1)
+                        img = cv2.putText(img, label, (x1, y1-5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,255), 1, cv2.LINE_AA)
+            img = cv2.putText(img, 'Resolution {}x{} detect {:.2f}ms on {}'.format(args.size, args.size, detect_time*1000, torch.cuda.get_device_name(0)), (20, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,255), 1, cv2.LINE_AA)
+            filename = 'draw/{}/{}.jpg'.format(args.dataset, i)
+            cv2.imwrite(filename, img)
+
         if i == 10:
             _t['im_detect'].clear()
             _t['im_nms'].clear()
@@ -217,7 +249,7 @@ def eval_model(
 if __name__ == '__main__':
 
     print('Loading Dataset...')
-    (num_classes, dataset, epoch_size, max_iter, testset) = \
+    (show_classes, num_classes, dataset, epoch_size, max_iter, testset) = \
         load_dataset()
 
     print('Loading Network...')
@@ -283,5 +315,5 @@ if __name__ == '__main__':
                     ))
                 timer.clear()
         save_weights(model)
-    eval_model(model, num_classes, testset, priors)
+    eval_model(model, num_classes, testset, priors, show_classes)
 

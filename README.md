@@ -55,17 +55,21 @@ $ python3 main.py --version fssd --backbone vgg16 --dataset voc --size 320 --mut
                             pafpn
 ```
 **Remarks:**
+
 - For training without Mutual Guide, just remove the '--mutual_guide';
 - The default folder to save trained model is `weights/`.
 ## Evaluation
 Every time you want to evaluate a trained network:
 ```Shell
-$ python3 main.py --version fssd --backbone vgg16 --dataset voc --size 320 --trained_model path_to_saved_weights
+$ python3 main.py --version fssd --backbone vgg16 --dataset voc --size 320 --trained_model path_to_saved_weights --draw
                             retinanet       resnet18        coco       512
                             pafpn
                             rfbnet
 ```
-It will directly print the mAP, AP50 and AP50 results on VOC2007 Test or COCO2017 Val.
+**Remarks:**
+
+- It will directly print the mAP, AP50 and AP50 results on VOC2007 Test or COCO2017 Val.
+- Add parameter `--draw` to draw detection results. They will be saved in `draw/VOC` or  `draw/COCO`.
 
 ## Citing Mutual Guidance
 
