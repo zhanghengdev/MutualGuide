@@ -14,13 +14,10 @@ class CEM(nn.Module):
 
     def __init__(self, channels, fea_channel=256):
         super(CEM, self).__init__()
-        self.cv1 = BasicConv(channels[0], fea_channel, kernel_size=1,
-                             padding=0)
-        self.cv2 = BasicConv(channels[1], fea_channel, kernel_size=1,
-                             padding=0, scale_factor=2)
+        self.cv1 = BasicConv(channels[0], fea_channel, kernel_size=1, padding=0)
+        self.cv2 = BasicConv(channels[1], fea_channel, kernel_size=1, padding=0, scale_factor=2)
         self.gap = nn.AdaptiveAvgPool2d(1)
-        self.cv3 = BasicConv(channels[1], fea_channel, kernel_size=1,
-                             padding=0)
+        self.cv3 = BasicConv(channels[1], fea_channel, kernel_size=1, padding=0)
 
     def forward(self, inputs):
         C4_lat = self.cv1(inputs[0])
@@ -30,63 +27,46 @@ class CEM(nn.Module):
 
 
 def fpn_feature_extractor(fpn_level, fea_channel=256):
-    layers = [BasicConv(fea_channel, fea_channel, kernel_size=3,
-              stride=1, padding=1)]
+    layers = [BasicConv(fea_channel, fea_channel, kernel_size=3, stride=1, padding=1)]
     for _ in range(fpn_level - 1):
-        layers.append(BasicConv(fea_channel, fea_channel,
-                      kernel_size=3, stride=2, padding=1))
+        layers.append(BasicConv(fea_channel, fea_channel, kernel_size=3, stride=2, padding=1))
     return nn.ModuleList(layers)
 
 
 def lateral_convs(fpn_level, fea_channel=256):
     layers = []
     for _ in range(fpn_level):
-        layers.append(BasicConv(fea_channel, fea_channel,
-                      kernel_size=1))
+        layers.append(BasicConv(fea_channel, fea_channel, kernel_size=1))
     return nn.ModuleList(layers)
 
 
 def fpn_convs(fpn_level, fea_channel=256):
     layers = []
     for _ in range(fpn_level):
-        layers.append(BasicConv(fea_channel, fea_channel,
-                      kernel_size=3, stride=1, padding=1))
+        layers.append(BasicConv(fea_channel, fea_channel, kernel_size=3, stride=1, padding=1))
     return nn.ModuleList(layers)
 
 
 def downsample_convs(fpn_level, fea_channel=256):
     layers = []
     for _ in range(fpn_level - 1):
-        layers.append(BasicConv(fea_channel, fea_channel,
-                      kernel_size=3, stride=2, padding=1))
+        layers.append(BasicConv(fea_channel, fea_channel, kernel_size=3, stride=2, padding=1))
     return nn.ModuleList(layers)
 
 
-def multibox(
-    fpn_level,
-    num_anchors,
-    num_classes,
-    fea_channel=256,
-    ):
+def multibox(fpn_level, num_anchors, num_classes, fea_channel=256):
     (loc_layers, conf_layers) = ([], [])
     loc_channel = num_anchors * 4
     cls_channel = num_anchors * num_classes
     for _ in range(fpn_level):
-        loc_layers += [nn.Conv2d(fea_channel, loc_channel,
-                       kernel_size=3, padding=1)]
-        conf_layers += [nn.Conv2d(fea_channel, cls_channel,
-                        kernel_size=3, padding=1)]
+        loc_layers += [nn.Conv2d(fea_channel, loc_channel, kernel_size=3, padding=1)]
+        conf_layers += [nn.Conv2d(fea_channel, cls_channel, kernel_size=3, padding=1)]
     return (nn.ModuleList(loc_layers), nn.ModuleList(conf_layers))
 
 
 class PAFPN(nn.Module):
 
-    def __init__(
-        self,
-        size,
-        num_classes,
-        backbone,
-        ):
+    def __init__(self, size, num_classes, backbone):
         super(PAFPN, self).__init__()
 
         # Params
@@ -101,6 +81,10 @@ class PAFPN(nn.Module):
             from models.vgg_backbone import VGGBackbone
             self.backbone = VGGBackbone(pretrained=True)
             channels = (512, 512)
+        elif backbone == 'regvgg':
+            from models.regvgg_backbone import REGVGGBackbone
+            self.backbone = REGVGGBackbone(pretrained=True)
+            channels = (384, 1408)
         elif backbone == 'resnet18':
             from models.resnet_backbone import resnet18
             self.backbone = resnet18(pretrained=True)
@@ -119,8 +103,7 @@ class PAFPN(nn.Module):
 
         # Detection Head
 
-        (self.loc, self.conf) = multibox(self.fpn_level,
-                self.num_anchors, self.num_classes)
+        (self.loc, self.conf) = multibox(self.fpn_level, self.num_anchors, self.num_classes)
 
         bias_value = 0
         for modules in self.loc:
@@ -143,8 +126,7 @@ class PAFPN(nn.Module):
 
         # backbone
 
-        source_features = self.backbone(x)
-        x = self.ft_module(source_features)
+        x = self.ft_module(self.backbone(x))
 
         # detection
 
@@ -155,32 +137,24 @@ class PAFPN(nn.Module):
 
         # fpn
 
-        laterals = [lateral_conv(x) for (x, lateral_conv) in
-                    zip(fpn_fea, self.lateral_convs)]
+        laterals = [lateral_conv(x) for (x, lateral_conv) in zip(fpn_fea, self.lateral_convs)]
         for i in range(self.fpn_level - 1, 0, -1):
             size = laterals[i - 1].size()[-2:]
-            laterals[i - 1] = laterals[i - 1] \
-                + F.interpolate(laterals[i], size=size, mode='nearest')
-        fpn_fea = [fpn_conv(x) for (x, fpn_conv) in zip(laterals,
-                   self.fpn_convs)]
+            laterals[i - 1] = laterals[i - 1] + F.interpolate(laterals[i], size=size, mode='nearest')
+        fpn_fea = [fpn_conv(x) for (x, fpn_conv) in zip(laterals, self.fpn_convs)]
         for i in range(0, self.fpn_level - 1):
             fpn_fea[i + 1] += self.downsample_convs[i](fpn_fea[i])
-        pafpn_fea = [pafpn_conv(x) for (x, pafpn_conv) in zip(fpn_fea,
-                     self.pafpn_convs)]
+        pafpn_fea = [pafpn_conv(x) for (x, pafpn_conv) in zip(fpn_fea, self.pafpn_convs)]
 
         # apply multibox head to source layers
 
-        for (i, (x, l, c)) in enumerate(zip(pafpn_fea, self.loc,
-                self.conf)):
+        for (i, (x, l, c)) in enumerate(zip(pafpn_fea, self.loc, self.conf)):
             loc.append(l(x).permute(0, 2, 3, 1).contiguous())
             conf.append(c(x).permute(0, 2, 3, 1).contiguous())
 
         loc = torch.cat([o.view(o.size(0), -1) for o in loc], 1)
         conf = torch.cat([o.view(o.size(0), -1) for o in conf], 1)
-        return (loc.view(loc.size(0), -1, 4), conf.view(conf.size(0),
-                -1, self.num_classes))  # loc preds
-                                        # conf preds
-
+        return (loc.view(loc.size(0), -1, 4), conf.view(conf.size(0), -1, self.num_classes))
 
 def build_net(size=320, num_classes=20, backbone='vgg16'):
 

@@ -5,6 +5,11 @@ Most deep learning object detectors are based on the anchor mechanism and resort
 <img align="center" src="https://github.com/zhangheng19931123/MutualGuide/blob/master/doc/compare.png">
 &nbsp;
 &nbsp;
+
+## Planning
+- [x] Add **draw** function to plot detection results.
+- [ ] Add [RepVGG](https://arxiv.org/abs/2101.03697) backbone.
+- [ ] Add **TensorRT** transform code for inference acceleration.
 ## Experimental results
 ### VOC2007 Test
 | **Detector** | **Resolution** | **mAP** | **AP50** | **AP75** | **Trained model** |
@@ -16,7 +21,7 @@ Most deep learning object detectors are based on the anchor mechanism and resort
 | RFBNet (VGG16) | 320x320 | 55.6 | 80.9 | 59.6 | [Google Drive](https://drive.google.com/file/d/1MOM4pTh4TQ1l3ADFqT-BLL9RoSJK33v3/view?usp=sharing) |
 | RFBNet (VGG16) + MG | 320x320 | **57.9** | **81.5** | **62.6** | [Google Drive](https://drive.google.com/file/d/1Nb6NPa4aNfz49NhGeTTfgW2vR-UVUzIz/view?usp=sharing) |
 | RetinaNet (VGG16) + PAFPN | 320x320 | 58.1 | 81.7 | 63.3 | |
-| RetinaNet (VGG16) + PAFPN + MG | 320x320 | **59.5** | **82.3** | **64.2** | |
+| RetinaNet (VGG16) + PAFPN + MG | 320x320 | **59.5** | **82.2** | **64.1** | [Google Drive](https://drive.google.com/file/d/1CQtVaMJctxNgmbNp9N-R8KH0gCOQhhPP/view?usp=sharing) |
 ### COCO2017 Val
 | **Detector** | **Resolution** | **mAP** | **AP50** | **AP75** | **FPS** (V100) | **Trained model** |
 |:-------|:-----:|:-------:|:-------:|:-------:|:-------:|:-------:|
@@ -39,12 +44,6 @@ Then create a folder named `datasets` and link the downloaded datasets inside:
 $ mkdir datasets
 $ ln -s /path_to_your_voc_dataset datasets/VOCdevkit
 $ ln -s /path_to_your_coco_dataset datasets/coco2017
-```
-Finally prepare folders to save evaluation results:
-```Shell
-$ mkdir eval
-$ mkdir eval/COCO
-$ mkdir eval/VOC
 ```
 ## Training
 For training with Mutual Guide:

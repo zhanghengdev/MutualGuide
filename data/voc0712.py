@@ -49,21 +49,36 @@ class AnnotationTransform(object):
             a list containing lists of bounding boxes  [bbox coords, class name]
         """
         res = np.empty((0,5))
+        #width = int(target.find('size').find('width').text)
+        #height = int(target.find('size').find('height').text)
         for obj in target.iter('object'):
             difficult = int(obj.find('difficult').text) == 1
             if not self.keep_difficult and difficult:
                 continue
-            name = obj.find('name').text.lower().replace('(group)','').strip()
+            name = obj.find('name').text.lower().replace('(group)','').replace('aeroplane','airplane').strip()
             bbox = obj.find('bndbox')
 
             pts = ['xmin', 'ymin', 'xmax', 'ymax']
             bndbox = []
             for i, pt in enumerate(pts):
                 cur_pt = int(bbox.find(pt).text)
+                # scale height or width
+                #cur_pt = cur_pt / width if i % 2 == 0 else cur_pt / height
                 bndbox.append(cur_pt)
-            label_idx = self.class_to_ind[name]
+            # print('{} {} {} {}'.format(bndbox[0],bndbox[1],bndbox[2],bndbox[3]))
+            # if (bndbox[2]-bndbox[0])<4 or (bndbox[3]-bndbox[1])<4:
+            #     import warnings
+            #     warnings.warn('Box too small : {}x{}'.format(bndbox[2]-bndbox[0], bndbox[3]-bndbox[1]))
+            #     continue
+            try:
+                label_idx = self.class_to_ind[name]
+            except:
+                import warnings
+                warnings.warn('Unrecognized class : {}'.format(name))
+                continue
             bndbox.append(label_idx)
             res = np.vstack((res,bndbox))  # [xmin, ymin, xmax, ymax, label_ind]
+            # img_id = target.find('filename').text[:-4]
 
         return res  # [[xmin, ymin, xmax, ymax, label_ind], ... ]
 
@@ -166,7 +181,7 @@ class VOCDetection(data.Dataset):
         to_tensor = transforms.ToTensor()
         return torch.Tensor(self.pull_image(index)).unsqueeze_(0)
 
-    def evaluate_detections(self, all_boxes, output_dir=None):
+    def evaluate_detections(self, all_boxes):
         """
         all_boxes is a list of length number-of-classes.
         Each list element is a list of length number-of-images.
@@ -175,6 +190,8 @@ class VOCDetection(data.Dataset):
 
         all_boxes[class][image] = [] or np.array of shape #dets x 5
         """
+        output_dir = os.path.join(self.root, 'eval')
+        os.makedirs(output_dir, exist_ok=True)
         self._write_voc_results_file(all_boxes)
         results = []
         for thresh in np.arange(0.5,1,0.05):

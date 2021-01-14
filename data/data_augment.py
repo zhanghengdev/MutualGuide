@@ -111,19 +111,13 @@ def _distort(image):
     return image
 
 
-def _expand(
-    image,
-    boxes,
-    labels,
-    fill,
-    p,
-    ):
+def _expand(image, boxes, labels, fill, p=0.6):
 
     if random.random() > p:
         return (image, boxes, labels)
 
     (height, width, depth) = image.shape
-    for _ in range(50):
+    while True:
         scale = random.uniform(1, 4)
 
         min_ratio = max(0.5, 1. / scale / scale)
@@ -161,12 +155,9 @@ def _mirror(image, boxes):
 
 
 def preproc_for_test(image, insize, mean):
-    interp_methods = [cv2.INTER_LINEAR, cv2.INTER_CUBIC,
-                      cv2.INTER_AREA, cv2.INTER_NEAREST,
-                      cv2.INTER_LANCZOS4]
+    interp_methods = [cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_NEAREST, cv2.INTER_LANCZOS4]
     interp_method = interp_methods[random.randrange(5)]
-    image = cv2.resize(image, (insize, insize),
-                       interpolation=interp_method)
+    image = cv2.resize(image, (insize, insize), interpolation=interp_method)
     image = image.astype(np.float32)
     image -= mean
     return image.transpose(2, 0, 1)
@@ -174,25 +165,16 @@ def preproc_for_test(image, insize, mean):
 
 class preproc(object):
 
-    def __init__(
-        self,
-        resize,
-        rgb_means=(104, 117, 123),
-        p=0.6,
-        ):
+    def __init__(self, resize, rgb_means=(104, 117, 123)):
 
         self.means = rgb_means
         self.resize = resize
-        self.p = p
 
     def __call__(self, image, targets):
 
         boxes = targets[:, :-1].copy()
         labels = targets[:, -1].copy()
         if len(boxes) == 0:
-
-            # boxes = np.empty((0, 4))
-
             targets = np.zeros((1, 5))
             image = preproc_for_test(image, self.resize, self.means)
             image = np.ascontiguousarray(image, dtype=np.float32)
@@ -211,8 +193,7 @@ class preproc(object):
 
         (image_t, boxes, labels) = _crop(image, boxes, labels)
         image_t = _distort(image_t)
-        (image_t, boxes, labels) = _expand(image_t, boxes, labels,
-                self.means, self.p)
+        (image_t, boxes, labels) = _expand(image_t, boxes, labels, self.means)
         (image_t, boxes) = _mirror(image_t, boxes)
 
         (height, width, _) = image_t.shape
@@ -260,7 +241,7 @@ class BaseTransform(object):
     def __init__(
         self,
         resize,
-        rgb_means,
+        rgb_means=(104, 117, 123),
         swap=(2, 0, 1),
         ):
 
@@ -271,8 +252,7 @@ class BaseTransform(object):
     # assume input is cv2 img for now
 
     def __call__(self, img):
-        img = cv2.resize(np.array(img), (self.resize, self.resize),
-                         interpolation=cv2.INTER_LINEAR).astype(np.float32)
+        img = cv2.resize(np.array(img), (self.resize, self.resize), interpolation=cv2.INTER_LINEAR).astype(np.float32)
         img -= self.means
         img = img.transpose(self.swap)
         img = np.ascontiguousarray(img, dtype=np.float32)
