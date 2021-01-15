@@ -49,36 +49,21 @@ class AnnotationTransform(object):
             a list containing lists of bounding boxes  [bbox coords, class name]
         """
         res = np.empty((0,5))
-        #width = int(target.find('size').find('width').text)
-        #height = int(target.find('size').find('height').text)
         for obj in target.iter('object'):
             difficult = int(obj.find('difficult').text) == 1
             if not self.keep_difficult and difficult:
                 continue
-            name = obj.find('name').text.lower().replace('(group)','').replace('aeroplane','airplane').strip()
+            name = obj.find('name').text.lower().replace('(group)','').strip()
             bbox = obj.find('bndbox')
 
             pts = ['xmin', 'ymin', 'xmax', 'ymax']
             bndbox = []
             for i, pt in enumerate(pts):
                 cur_pt = int(bbox.find(pt).text)
-                # scale height or width
-                #cur_pt = cur_pt / width if i % 2 == 0 else cur_pt / height
                 bndbox.append(cur_pt)
-            # print('{} {} {} {}'.format(bndbox[0],bndbox[1],bndbox[2],bndbox[3]))
-            # if (bndbox[2]-bndbox[0])<4 or (bndbox[3]-bndbox[1])<4:
-            #     import warnings
-            #     warnings.warn('Box too small : {}x{}'.format(bndbox[2]-bndbox[0], bndbox[3]-bndbox[1]))
-            #     continue
-            try:
-                label_idx = self.class_to_ind[name]
-            except:
-                import warnings
-                warnings.warn('Unrecognized class : {}'.format(name))
-                continue
+            label_idx = self.class_to_ind[name]
             bndbox.append(label_idx)
             res = np.vstack((res,bndbox))  # [xmin, ymin, xmax, ymax, label_ind]
-            # img_id = target.find('filename').text[:-4]
 
         return res  # [[xmin, ymin, xmax, ymax, label_ind], ... ]
 

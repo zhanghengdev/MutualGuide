@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 import torch.nn.init as init
 import torch.nn.functional as F
-from models.base_blocks import BasicConv
+from models.base_blocks import BasicConv, RepVGGBlock
 
 
 class CEM(nn.Module):
@@ -27,9 +27,9 @@ class CEM(nn.Module):
 
 
 def fpn_feature_extractor(fpn_level, fea_channel=256):
-    layers = [BasicConv(fea_channel, fea_channel, kernel_size=3, stride=1, padding=1)]
+    layers = [RepVGGBlock(fea_channel, fea_channel, kernel_size=3, stride=1, padding=1)]
     for _ in range(fpn_level - 1):
-        layers.append(BasicConv(fea_channel, fea_channel, kernel_size=3, stride=2, padding=1))
+        layers.append(RepVGGBlock(fea_channel, fea_channel, kernel_size=3, stride=2, padding=1))
     return nn.ModuleList(layers)
 
 
@@ -43,14 +43,14 @@ def lateral_convs(fpn_level, fea_channel=256):
 def fpn_convs(fpn_level, fea_channel=256):
     layers = []
     for _ in range(fpn_level):
-        layers.append(BasicConv(fea_channel, fea_channel, kernel_size=3, stride=1, padding=1))
+        layers.append(RepVGGBlock(fea_channel, fea_channel, kernel_size=3, stride=1, padding=1))
     return nn.ModuleList(layers)
 
 
 def downsample_convs(fpn_level, fea_channel=256):
     layers = []
     for _ in range(fpn_level - 1):
-        layers.append(BasicConv(fea_channel, fea_channel, kernel_size=3, stride=2, padding=1))
+        layers.append(RepVGGBlock(fea_channel, fea_channel, kernel_size=3, stride=2, padding=1))
     return nn.ModuleList(layers)
 
 
@@ -119,6 +119,8 @@ class PAFPN(nn.Module):
                 if isinstance(l, nn.Conv2d):
                     torch.nn.init.normal_(l.weight, std=0.01)
                     torch.nn.init.constant_(l.bias, bias_value)
+
+        print(self)
 
     def forward(self, x):
         loc = list()

@@ -37,7 +37,7 @@ cudnn.benchmark = True
 ### For Reproducibility ###
 
 parser = argparse.ArgumentParser(description='Pytorch Training')
-parser.add_argument('--version', default='pafpn')
+parser.add_argument('--version', default='regpafpn')
 parser.add_argument('--backbone', default='vgg16')
 parser.add_argument('--dataset', default='VOC')
 parser.add_argument('--save_folder', default='weights/')
@@ -109,6 +109,9 @@ def load_network(num_classes):
         model = build_net(args.size, num_classes, args.backbone)
     elif args.version == 'pafpn':
         from models.pafpn import build_net
+        model = build_net(args.size, num_classes, args.backbone)
+    elif args.version == 'regpafpn':
+        from models.regpafpn import build_net
         model = build_net(args.size, num_classes, args.backbone)
     elif args.version == 'rfbnet':
         from models.rfbnet import build_net
