@@ -65,15 +65,7 @@ def jaccard(box_a, box_b):
     return inter / union  # [A,B]
 
 
-def match(
-    truths,
-    priors,
-    labels,
-    loc_t,
-    conf_t,
-    overlap_t,
-    idx,
-    ):
+def match(truths, priors, labels, loc_t, conf_t, overlap_t, idx):
     """Match each prior box with the ground truth box of the highest jaccard
     overlap, encode the bounding boxes, then return the matched indices
     corresponding to both confidence and location preds.
@@ -100,18 +92,7 @@ def match(
     loc_t[idx] = truths[best_truth_idx]  # Shape: [num_priors,4]
 
 
-def mutual_match(
-    truths,
-    priors,
-    regress,
-    classif,
-    labels,
-    loc_t,
-    conf_t,
-    overlap_t,
-    pred_t,
-    idx,
-    ):
+def mutual_match(truths, priors, regress, classif, labels, loc_t, conf_t, overlap_t, pred_t, idx):
     """Classify to regress and regress to classify, Mutual Match for label assignement.
     Args:
         truths: (tensor) Ground truth boxes, Shape: [num_obj, 4].

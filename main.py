@@ -37,8 +37,8 @@ cudnn.benchmark = True
 ### For Reproducibility ###
 
 parser = argparse.ArgumentParser(description='Pytorch Training')
-parser.add_argument('--version', default='regpafpn')
-parser.add_argument('--backbone', default='vgg16')
+parser.add_argument('--neck', default='pafpn')
+parser.add_argument('--backbone', default='repvgg')
 parser.add_argument('--dataset', default='VOC')
 parser.add_argument('--save_folder', default='weights/')
 parser.add_argument('--mutual_guide', action='store_true')
@@ -100,33 +100,10 @@ def load_dataset():
     return (show_classes, num_classes, dataset, epoch_size, max_iter, testset)
 
 
-def load_network(num_classes):
-    if args.version == 'fssd':
-        from models.fssd import build_net
-        model = build_net(args.size, num_classes, args.backbone)
-    elif args.version == 'retinanet':
-        from models.retinanet import build_net
-        model = build_net(args.size, num_classes, args.backbone)
-    elif args.version == 'pafpn':
-        from models.pafpn import build_net
-        model = build_net(args.size, num_classes, args.backbone)
-    elif args.version == 'regpafpn':
-        from models.regpafpn import build_net
-        model = build_net(args.size, num_classes, args.backbone)
-    elif args.version == 'rfbnet':
-        from models.rfbnet import build_net
-        model = build_net(args.size, num_classes)
-    else:
-        raise NotImplementedError('Unkown version {}!'.format(args.version))
-    model.train()
-    model.cuda()
-    return model
-
-
 def save_weights(model):
-    save_path = os.path.join(args.save_folder, '{}_{}_{}_size{}_anchor{}{}.pth'.format(
+    save_path = os.path.join(args.save_folder, 'trans_{}_{}_{}_size{}_anchor{}{}.pth'.format(
         args.dataset,
-        args.version,
+        args.neck,
         args.backbone,
         args.size,
         args.base_anchor_size,
@@ -142,7 +119,10 @@ if __name__ == '__main__':
     (show_classes, num_classes, dataset, epoch_size, max_iter, testset) =  load_dataset()
 
     print('Loading Network...')
-    model = load_network(num_classes)
+    from models.detector import Detector
+    model = Detector(args.size, num_classes, args.backbone, args.neck)
+    model.train()
+    model.cuda()
     num_param = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print('Total param is : {:e}'.format(num_param))
 
@@ -159,7 +139,7 @@ if __name__ == '__main__':
         state_dict = torch.load(args.trained_model)
         model.load_state_dict(state_dict, strict=True)
     else:
-        print('Training {} on {} with {} images'.format(args.version, dataset.name, len(dataset)))
+        print('Training {}-{} on {} with {} images'.format(args.neck, args.backbone, dataset.name, len(dataset)))
         os.makedirs(args.save_folder, exist_ok=True)
         epoch = 0
         timer = Timer()

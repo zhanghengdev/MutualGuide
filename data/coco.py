@@ -22,8 +22,7 @@ from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
 from pycocotools import mask as COCOmask
 
-COCOroot = os.path.join('datasets/', 'coco2017/')
-#COCOroot = os.path.join('/local/henzhang/', 'coco/')
+COCOroot = os.path.join('datasets/', 'coco/')
 COCO_CLASSES = ( '__background__', # always index 0
     'person','bicycle','car','motorbike','aeroplane',
     'bus','train','truck','boat','traffic light',
@@ -89,8 +88,7 @@ class COCODetection(data.Dataset):
             self._classes = tuple(['__background__'] + [c['name'] for c in cats])
             self.num_classes = len(self._classes)
             self._class_to_ind = dict(zip(self._classes, range(self.num_classes)))
-            self._class_to_coco_cat_id = dict(zip([c['name'] for c in cats],
-                                                  _COCO.getCatIds()))
+            self._class_to_coco_cat_id = dict(zip([c['name'] for c in cats], _COCO.getCatIds()))
             indexes = _COCO.getImgIds()
             self.image_indexes = indexes
             self.ids.extend([self.image_path_from_index(data_name, index) for index in indexes ])
@@ -117,16 +115,13 @@ class COCODetection(data.Dataset):
         #   coco2017/train2017/000000119993.jpg
         file_name = (str(index).zfill(12) + '.jpg')
         image_path = os.path.join(self.root, name, file_name)
-        assert os.path.exists(image_path), \
-                'Path does not exist: {}'.format(image_path)
+        assert os.path.exists(image_path), 'Path does not exist: {}'.format(image_path)
         return image_path
 
 
     def _get_ann_file(self, name):
-        prefix = 'instances' if name.find('test') == -1 \
-                else 'image_info'
-        return os.path.join(self.root, 'annotations',
-                        prefix + '_' + name + '.json')
+        prefix = 'instances' if name.find('test') == -1 else 'image_info'
+        return os.path.join(self.root, 'annotations', prefix + '_' + name + '.json')
 
 
     def _load_coco_annotations(self, coco_name, indexes, _COCO):
@@ -137,8 +132,7 @@ class COCODetection(data.Dataset):
             print('{} gt roidb loaded from {}'.format(coco_name,cache_file))
             return roidb
 
-        gt_roidb = [self._annotation_from_index(index, _COCO)
-                    for index in indexes]
+        gt_roidb = [self._annotation_from_index(index, _COCO) for index in indexes]
         with open(cache_file, 'wb') as fid:
             pickle.dump(gt_roidb,fid,pickle.HIGHEST_PROTOCOL)
         print('wrote gt roidb to {}'.format(cache_file))
@@ -265,7 +259,7 @@ class COCODetection(data.Dataset):
             precision = coco_eval.eval['precision'][ind_lo:(ind_hi + 1), :, cls_ind - 1, 0, 2]
             ap = np.mean(precision[precision > -1])
             #print('{}: {:.1f}'.format(cls, 100 * ap))
-            print('{:.1f}'.format(100 * ap))
+            #print('{:.1f}'.format(100 * ap))
 
         print('~~~~ Summary metrics ~~~~')
         coco_eval.summarize()
