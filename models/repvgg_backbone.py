@@ -112,7 +112,7 @@ class REPVGGBackbone(nn.Module):
 
     def load_pre_trained_weights(self):
         print('Loading Pytorch pretrained weights...')
-        pretrained_dict = state_dict = torch.load('/srv/tempdd/henzhang/weights/REGVGGPretrained/RepVGG-A2-train.pth')
+        pretrained_dict = state_dict = torch.load('weights/REGVGGPretrained/RepVGG-A2-train.pth')
         pretrained_dict.pop('linear.weight')
         pretrained_dict.pop('linear.bias')
         self.load_state_dict(pretrained_dict, strict=True)
