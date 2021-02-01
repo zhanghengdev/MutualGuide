@@ -45,6 +45,7 @@ Most deep learning object detectors are based on the anchor mechanism and resort
 | VGG16 | FPN | ✓ | 512x512 | **38.2** | **56.6** | **41.0** | 250 | |
 | VGG16 | PAFPN | | 512x512 | 38.5 | 57.6 | 41.0 | 195 | [Download](https://drive.google.com/file/d/18zmuc9GCjVyCNb23Vv91LCSHjFCYLuhY/view?usp=sharing) |
 | VGG16 | PAFPN | ✓ | 512x512 | **39.4** | **57.5** | **42.3** | 195 | [Download](https://drive.google.com/file/d/1Px9DLuGWIICsEw4tKYGCefLuXf09Xqg1/view?usp=sharing) |
+
 **Remarks:**
 
 - The inference FPS is measure by Pytorch 1.20 framework on a Tesla V100 GPU, the post-processing time (nms) time is not included.
