@@ -18,7 +18,7 @@ def multibox(fpn_level, num_anchors, num_classes, fea_channel):
 
 class Detector(nn.Module):
 
-    def __init__(self, size, num_classes, backbone, neck, fea_channel=128):
+    def __init__(self, size, num_classes, backbone, neck):
         super(Detector, self).__init__()
 
         # Params
@@ -34,18 +34,22 @@ class Detector(nn.Module):
             from models.backbone.vgg_backbone import VGGBackbone
             self.backbone = VGGBackbone(pretrained=True)
             channels = (512, 512)
+            fea_channel = 256
         elif backbone == 'repvgg':
             from models.backbone.repvgg_backbone import REPVGGBackbone
             self.backbone = REPVGGBackbone(pretrained=True)
             channels = (384, 1408)
+            fea_channel = 256
         elif backbone == 'resnet18':
             from models.backbone.resnet_backbone import ResNetBackbone
             self.backbone = ResNetBackbone(pretrained=True)
             channels = (256, 512)
+            fea_channel = 256
         elif backbone == 'shufflenet':
             from models.backbone.shufflenet_backbone import ShuffleNetBackbone
             self.backbone = ShuffleNetBackbone(pretrained=True)
             channels = (232, 464)
+            fea_channel = 128
         else:
             raise ValueError('Error: Sorry backbone {} is not supported!'.format(backbone))
 

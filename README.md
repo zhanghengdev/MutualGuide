@@ -48,7 +48,11 @@ Most deep learning object detectors are based on the anchor mechanism and resort
 
 **Remarks:**
 
+<<<<<<< HEAD
 - The inference Frame-Per-Second is measured by Pytorch 1.2.0 framework on a Tesla V100 GPU, the post-processing time (nms) time is not included.
+=======
+- The inference FPS is measure by Pytorch 1.20 framework on a Tesla V100 GPU, the post-processing time (nms) time is not included.
+>>>>>>> f28a48da2a4222460f620bbbe1638949fc1a8f23
 
 ## Datasets
 First download the VOC and COCO dataset, you may find the sripts in `data/scripts/` helpful.
