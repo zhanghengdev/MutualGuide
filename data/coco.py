@@ -22,7 +22,7 @@ from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
 from pycocotools import mask as COCOmask
 
-COCOroot = os.path.join('datasets/', 'coco/')
+COCOroot = os.path.join('datasets/', 'coco2017/')
 COCO_CLASSES = ( '__background__', # always index 0
     'person','bicycle','car','motorbike','aeroplane',
     'bus','train','truck','boat','traffic light',

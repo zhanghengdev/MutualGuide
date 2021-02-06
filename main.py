@@ -101,7 +101,7 @@ def load_dataset():
 
 
 def save_weights(model):
-    save_path = os.path.join(args.save_folder, 'trans_{}_{}_{}_size{}_anchor{}{}.pth'.format(
+    save_path = os.path.join(args.save_folder, '{}_{}_{}_size{}_anchor{}{}.pth'.format(
         args.dataset,
         args.neck,
         args.backbone,

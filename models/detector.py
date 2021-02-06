@@ -31,19 +31,19 @@ class Detector(nn.Module):
         # Backbone network
 
         if backbone == 'vgg16':
-            from models.vgg_backbone import VGGBackbone
+            from models.backbone.vgg_backbone import VGGBackbone
             self.backbone = VGGBackbone(pretrained=True)
             channels = (512, 512)
         elif backbone == 'repvgg':
-            from models.repvgg_backbone import REPVGGBackbone
+            from models.backbone.repvgg_backbone import REPVGGBackbone
             self.backbone = REPVGGBackbone(pretrained=True)
             channels = (384, 1408)
         elif backbone == 'resnet18':
-            from models.resnet_backbone import ResNetBackbone
+            from models.backbone.resnet_backbone import ResNetBackbone
             self.backbone = ResNetBackbone(pretrained=True)
             channels = (256, 512)
         elif backbone == 'shufflenet':
-            from models.shufflenet_backbone import ShuffleNetBackbone
+            from models.backbone.shufflenet_backbone import ShuffleNetBackbone
             self.backbone = ShuffleNetBackbone(pretrained=True)
             channels = (232, 464)
         else:
@@ -51,13 +51,13 @@ class Detector(nn.Module):
 
         # Neck network
         if neck == 'ssd':
-            from models.ssd_neck import SSDNeck
+            from models.neck.ssd_neck import SSDNeck
             self.neck = SSDNeck(self.fpn_level, channels, fea_channel)
         elif neck == 'fpn':
-            from models.fpn_neck import FPNNeck
+            from models.neck.fpn_neck import FPNNeck
             self.neck = FPNNeck(self.fpn_level, channels, fea_channel)
         elif neck == 'pafpn':
-            from models.pafpn_neck import PAFPNNeck
+            from models.neck.pafpn_neck import PAFPNNeck
             self.neck = PAFPNNeck(self.fpn_level, channels, fea_channel)
         else:
             raise ValueError('Error: Sorry neck {} is not supported!'.format(neck))
