@@ -34,11 +34,9 @@ class BasicConv(nn.Module):
             groups=groups,
             bias=bias,
             )
-        self.bn = (nn.BatchNorm2d(out_planes, eps=1e-5, momentum=0.01,
-                   affine=True) if bn else None)
+        self.bn = (nn.BatchNorm2d(out_planes, eps=1e-5, momentum=0.01, affine=True) if bn else None)
         self.relu = (nn.ReLU(inplace=False) if relu else None)
-        self.upsample = (nn.Upsample(scale_factor=scale_factor,
-                         mode='nearest') if scale_factor > 1 else None)
+        self.upsample = (nn.Upsample(scale_factor=scale_factor, mode='nearest') if scale_factor > 1 else None)
 
     def forward(self, x):
         x = self.conv(x)

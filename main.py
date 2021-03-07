@@ -95,6 +95,14 @@ def load_dataset():
         epoch_size = len(dataset) // args.batch_size
         max_iter = 140 * epoch_size
         testset = COCODetection(COCOroot, [('2017', 'val')], None)
+    elif args.dataset == 'XML':
+        from data import XMLroot, XMLDetection, XML_CLASSES
+        show_classes = XML_CLASSES
+        num_classes = len(XML_CLASSES)
+        dataset = XMLDetection(XMLroot, 'train', XML_CLASSES, preproc(args.size))
+        epoch_size = len(dataset) // args.batch_size
+        max_iter = 140 * epoch_size
+        testset = XMLDetection(XMLroot, 'val', XML_CLASSES, None)
     else:
         raise NotImplementedError('Unkown dataset {}!'.format(args.dataset))
     return (show_classes, num_classes, dataset, epoch_size, max_iter, testset)

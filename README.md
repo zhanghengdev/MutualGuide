@@ -5,13 +5,15 @@ By Heng Zhang, Elisa FROMONT, Sébastien LEFEVRE, Bruno AVIGNON
 - [x] Add **draw** function to plot detection results.
 - [x] Add [RepVGG](https://arxiv.org/abs/2101.03697) backbone.
 - [x] Add [ShuffleNetV2](https://arxiv.org/abs/1807.11164) backbone.
+- [ ] Add [Transformer](https://arxiv.org/abs/2102.12122) backbone.
 - [ ] Add **TensorRT** transform code for inference acceleration.
-- [ ] Add **custom dataset** training.
+- [x] Add **custom dataset** training (annotations in `XML` format).
 ## Introduction
 Most deep learning object detectors are based on the anchor mechanism and resort to the Intersection over Union (IoU) between predefined anchor boxes and ground truth boxes to evaluate the matching quality between anchors and objects. In this paper, we question this use of IoU and propose a new anchor matching criterion guided, during the training phase, by the optimization of both the localization and the classification tasks: the predictions related to one task are used to dynamically assign sample anchors and improve the model on the other task, and vice versa. This is the Pytorch implementation of Mutual Guidance detectors. For more details, please refer to our [ACCV paper](https://openaccess.thecvf.com/content/ACCV2020/html/Zhang_Localize_to_Classify_and_Classify_to_Localize_Mutual_Guidance_in_ACCV_2020_paper.html).
 <img align="center" src="https://github.com/zhangheng19931123/MutualGuide/blob/master/doc/compare.png">
 &nbsp;
 &nbsp;
+
 ## Experimental results
 ### VOC2007 Test
 | **Backbone** | **Neck** | MG | **Resolution** | **mAP** | **AP50** | **AP75** | **Model** |
@@ -58,29 +60,33 @@ $ mkdir datasets
 $ ln -s /path_to_your_voc_dataset datasets/VOCdevkit
 $ ln -s /path_to_your_coco_dataset datasets/coco2017
 ```
+For training on custom dataset, first modify the dataset path `XMLroot` and categories `XML_CLASSES` in `data/xml_dataset.py`. Then apply `--dataset XML`.
+
 ## Training
 For training with Mutual Guide:
 ```Shell
-$ python3 main.py --neck ssd --backbone vgg16 --dataset voc --size 320 --mutual_guide
-                         fpn            resnet18        coco       512
-                         pafpn          repvgg
+$ python3 main.py --neck ssd --backbone vgg16 --dataset VOC --size 320 --mutual_guide
+                         fpn            resnet18        COCO       512
+                         pafpn          repvgg          XML
                                         shufflenet
 ```
 **Remarks:**
 
 - For training without MutualGuide, just remove the '--mutual_guide';
 - The default folder to save trained model is `weights/`.
+
 ## Evaluation
 Every time you want to evaluate a trained network:
 ```Shell
-$ python3 main.py --neck ssd --backbone vgg16 --dataset voc --size 320 --trained_model path_to_saved_weights --draw
-                         fpn            resnet18        coco       512
-                         pafpn          repvgg
+$ python3 main.py --neck ssd --backbone vgg16 --dataset VOC --size 320 --trained_model path_to_saved_weights --draw
+                         fpn            resnet18        COCO       512
+                         pafpn          repvgg          XML
                                         shufflenet
 ```
 **Remarks:**
 - It will directly print the mAP, AP50 and AP50 results on VOC2007 Test or COCO2017 Val.
 - Add parameter `--draw` to draw detection results. They will be saved in `draw/VOC/` or  `draw/COCO/`.
+
 ## Citing Mutual Guidance
 Please cite our paper in your publications if it helps your research:
 
