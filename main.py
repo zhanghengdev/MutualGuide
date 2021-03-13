@@ -50,6 +50,7 @@ parser.add_argument('--lr', default=1e-2, type=float)
 parser.add_argument('--warm_iter', default=500, type=int)
 parser.add_argument('--trained_model', help='Location to trained model')
 parser.add_argument('--draw', action='store_true', help='Draw detection results')
+parser.add_argument('--mixup', action='store_true')
 args = parser.parse_args()
 print(args)
 
@@ -165,9 +166,24 @@ if __name__ == '__main__':
             (images, targets) = next(batch_iterator)
             images = Variable(images.cuda())
             targets = [Variable(anno.cuda()) for anno in targets]
-            out = model(images)
-            (loss_l, loss_c) = criterion(out, priors, targets)
-            loss = loss_l + loss_c
+            
+            if args.mixup and iteration < int(0.8*max_iter):
+                # mixup
+                alpha = 1.0
+                lam = np.random.beta(alpha,alpha)
+                index = torch.randperm(args.batch_size).cuda()
+                inputs = lam*images + (1-lam)*images[index,:]
+                targets_a, targets_b = targets, [ targets[index[i]] for i in range(args.batch_size)]
+                outputs = model(inputs)
+                (loss_l_a, loss_c_a) = criterion(outputs, priors, targets_a)
+                (loss_l_b, loss_c_b) = criterion(outputs, priors, targets_b)
+                loss = lam * (loss_l_a + loss_c_a) + (1 - lam) * (loss_l_b + loss_c_b)
+            else:
+                # non mixup
+                out = model(images)
+                (loss_l, loss_c) = criterion(out, priors, targets)
+                loss = loss_l + loss_c
+
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()

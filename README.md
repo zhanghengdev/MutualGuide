@@ -2,12 +2,15 @@
 By Heng Zhang, Elisa FROMONT, Sébastien LEFEVRE, Bruno AVIGNON
 
 ## Planning
-- [x] Add **draw** function to plot detection results.
 - [x] Add [RepVGG](https://arxiv.org/abs/2101.03697) backbone.
 - [x] Add [ShuffleNetV2](https://arxiv.org/abs/1807.11164) backbone.
 - [ ] Add [Transformer](https://arxiv.org/abs/2102.12122) backbone.
+- [ ] Add [BiFPN](https://arxiv.org/abs/1911.09070) neck.
 - [ ] Add **TensorRT** transform code for inference acceleration.
+- [x] Add **MixUp** data augmentation for training.
+- [x] Add **draw** function to plot detection results.
 - [x] Add **custom dataset** training (annotations in `XML` format).
+
 ## Introduction
 Most deep learning object detectors are based on the anchor mechanism and resort to the Intersection over Union (IoU) between predefined anchor boxes and ground truth boxes to evaluate the matching quality between anchors and objects. In this paper, we question this use of IoU and propose a new anchor matching criterion guided, during the training phase, by the optimization of both the localization and the classification tasks: the predictions related to one task are used to dynamically assign sample anchors and improve the model on the other task, and vice versa. This is the Pytorch implementation of Mutual Guidance detectors. For more details, please refer to our [ACCV paper](https://openaccess.thecvf.com/content/ACCV2020/html/Zhang_Localize_to_Classify_and_Classify_to_Localize_Mutual_Guidance_in_ACCV_2020_paper.html).
 <img align="center" src="https://github.com/zhangheng19931123/MutualGuide/blob/master/doc/compare.png">
@@ -18,8 +21,8 @@ Most deep learning object detectors are based on the anchor mechanism and resort
 ### VOC2007 Test
 | **Backbone** | **Neck** | MG | **Resolution** | **mAP** | **AP50** | **AP75** | **Model** |
 |:-----:|:-----:|:-----:|:-----:|:-------:|:-------:|:-------:|:-------:|
-| ShuffleNetV2 | FPN | | 320x320 | 51.7 | 55.5 | 77.0 | [Download](https://drive.google.com/file/d/16uX2sQo3tOY9OmukUMDWHlmW68cqixBc/view?usp=sharing) |
-| ShuffleNetV2 | FPN | ✓ | 320x320 | **52.8** | **56.6** | **77.3** | [Download](https://drive.google.com/file/d/1KK0qHQWuBmMPmAHwVw0G0wF4PbAZ3GR0/view?usp=sharing) |
+| ShuffleNetV2 | FPN | | 320x320 | 51.7 | 77.0 | 55.5 | [Download](https://drive.google.com/file/d/16uX2sQo3tOY9OmukUMDWHlmW68cqixBc/view?usp=sharing) |
+| ShuffleNetV2 | FPN | ✓ | 320x320 | **52.8** | **77.3** | **56.6** | [Download](https://drive.google.com/file/d/1KK0qHQWuBmMPmAHwVw0G0wF4PbAZ3GR0/view?usp=sharing) |
 | VGG16 | SSD | | 320x320 | 54.1 | 80.1 | 58.3 | [Download](https://drive.google.com/file/d/1fCfa3E9rama3SeTD5Tt7CyWapzxBAm0g/view?usp=sharing) |
 | VGG16 | SSD | ✓ | 320x320 | **56.2** | **80.4** | **61.4** | [Download](https://drive.google.com/file/d/1jQLuU3yNy-09eoSfRO7p6k_6YnxsX8B1/view?usp=sharing) |
 | VGG16 | FPN | | 320x320 | 55.2 | 80.2 | 59.6 | [Download](https://drive.google.com/file/d/1Cv2PNB2VnisEDZa87j_ToXnZtWtQ9s11/view?usp=sharing) |
@@ -30,6 +33,8 @@ Most deep learning object detectors are based on the anchor mechanism and resort
 | VGG16 | PAFPN | ✓ | 320x320 | **59.5** | **82.2** | **64.1** | [Download](https://drive.google.com/file/d/1su13LbkbhoFjAk0xp7NxqzSjOqB01773/view?usp=sharing) |
 | REGVGG A2 | PAFPN | | 320x320 | 60.0 | 83.1 | 65.1 | [Download](https://drive.google.com/file/d/15SEoXNeRr4Mv-ZEPdjC2psFh0WScjvzr/view?usp=sharing) |
 | REGVGG A2 | PAFPN | ✓ | 320x320 | **61.8** | **83.7** | **68.1** | [Download](https://drive.google.com/file/d/1kv2439v33WvfWy592vnqWWAiV7IVu0k6/view?usp=sharing) |
+| REGVGG A2 + MixUp | PAFPN | ✓ | 320x320 | **62.4** | **84.2** | **68.2** | [Download](https://drive.google.com/file/d/1q1O6yMmf4EhF8lvDlPoxL0kZprU11H_W/view?usp=sharing) |
+
 ### COCO2017 Val
 | **Backbone** | **Neck** | MG | **Resolution** | **mAP** | **AP50** | **AP75** | **FPS** | **Model** |
 |:-----:|:-----:|:-----:|:-----:|:-------:|:-------:|:-------:|:-------:|:-------:|
@@ -50,7 +55,7 @@ Most deep learning object detectors are based on the anchor mechanism and resort
 
 **Remarks:**
 
-- The inference Frame-Per-Second is measured by Pytorch 1.2.0 framework on a Tesla V100 GPU, the post-processing time (nms) time is not included.
+- The inference Frame-Per-Second is measured by Pytorch 1.2.0 framework on a Tesla V100 GPU, note that the post-processing time (NMS) time is not included.
 
 ## Datasets
 First download the VOC and COCO dataset, you may find the sripts in `data/scripts/` helpful.
@@ -65,7 +70,7 @@ For training on custom dataset, first modify the dataset path `XMLroot` and cate
 ## Training
 For training with Mutual Guide:
 ```Shell
-$ python3 main.py --neck ssd --backbone vgg16 --dataset VOC --size 320 --mutual_guide
+$ python3 main.py --neck ssd --backbone vgg16 --dataset VOC --size 320 --mutual_guide --mixup
                          fpn            resnet18        COCO       512
                          pafpn          repvgg          XML
                                         shufflenet
@@ -73,6 +78,7 @@ $ python3 main.py --neck ssd --backbone vgg16 --dataset VOC --size 320 --mutual_
 **Remarks:**
 
 - For training without MutualGuide, just remove the '--mutual_guide';
+- For training without MixUp, just remove the '--mixup';
 - The default folder to save trained model is `weights/`.
 
 ## Evaluation
