@@ -8,10 +8,9 @@ import torch.nn.functional as F
 from models.base_blocks import BasicConv
 
 def multibox(fpn_level, num_anchors, num_classes, fea_channel):
-    loc_layers, conf_layers, dist_layers = list(), list(), list()
+    loc_layers, conf_layers = list(), list()
     loc_channel = num_anchors * 4
     cls_channel = num_anchors * num_classes
-    dis_channel = 256
     for _ in range(fpn_level):
         loc_layer = nn.Sequential(
             BasicConv(fea_channel, fea_channel, 3, padding=1),
@@ -23,9 +22,7 @@ def multibox(fpn_level, num_anchors, num_classes, fea_channel):
             nn.Conv2d(fea_channel, cls_channel, kernel_size=3, padding=1)
             )
         conf_layers.append(conf_layer)
-        dist_layer = nn.Conv2d(fea_channel, dis_channel, kernel_size=3, padding=1)
-        dist_layers.append(dist_layer)
-    return (nn.ModuleList(loc_layers), nn.ModuleList(conf_layers), nn.ModuleList(dist_layers))
+    return (nn.ModuleList(loc_layers), nn.ModuleList(conf_layers))
 
 
 class Detector(nn.Module):
@@ -89,7 +86,7 @@ class Detector(nn.Module):
 
         # Detection Head
 
-        (self.loc, self.conf, self.dist) = multibox(self.fpn_level, self.num_anchors, self.num_classes, self.fea_channel)
+        (self.loc, self.conf) = multibox(self.fpn_level, self.num_anchors, self.num_classes, self.fea_channel)
 
         bias_value = 0
         for modules in self.loc:
@@ -110,8 +107,8 @@ class Detector(nn.Module):
         x = self.backbone(x)
         fp = self.neck(x)
 
-        for (x, l, c, d) in zip(fp, self.loc, self.conf, self.dist):
-            fea.append(d(x).permute(0, 2, 3, 1).contiguous())
+        for (i, (x, l, c)) in enumerate(zip(fp, self.loc, self.conf)):
+            fea.append(x.permute(0, 2, 3, 1).contiguous())
             loc.append(l(x).permute(0, 2, 3, 1).contiguous())
             conf.append(c(x).permute(0, 2, 3, 1).contiguous())
 
@@ -122,22 +119,4 @@ class Detector(nn.Module):
             loc.view(loc.size(0), -1, 4), 
             conf.view(conf.size(0), -1, self.num_classes), 
             fea.view(conf.size(0), -1, self.fea_channel),
-            )
-
-    def forward_test(self, x):
-        loc = list()
-        conf = list()
-
-        x = self.backbone(x)
-        fp = self.neck(x)
-
-        for (x, l, c) in zip(fp, self.loc, self.conf):
-            loc.append(l(x).permute(0, 2, 3, 1).contiguous())
-            conf.append(c(x).permute(0, 2, 3, 1).contiguous())
-
-        loc = torch.cat([o.view(o.size(0), -1) for o in loc], 1)
-        conf = torch.cat([o.view(o.size(0), -1) for o in conf], 1)
-        return (
-            loc.view(loc.size(0), -1, 4), 
-            conf.view(conf.size(0), -1, self.num_classes), 
             )

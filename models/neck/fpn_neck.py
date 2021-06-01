@@ -6,15 +6,25 @@ import torch.nn as nn
 import torch.nn.functional as F
 from models.base_blocks import BasicConv
 
-def feature_transform_module(channels, fea_channel):
-    layers = []
-    for (i, channel) in enumerate(channels):
-        layers.append(BasicConv(channel, fea_channel, kernel_size=1, padding=0, scale_factor=2 ** i))
-    return nn.ModuleList(layers)
+
+class CEM(nn.Module):
+    """Context Enhancement Module"""
+    def __init__(self, channels, fea_channel):
+        super(CEM, self).__init__()
+        self.cv1 = BasicConv(channels[0], fea_channel, kernel_size=1, padding=0)
+        self.cv2 = BasicConv(channels[1], fea_channel, kernel_size=1, padding=0, scale_factor=2)
+        self.gap = nn.AdaptiveAvgPool2d(1)
+        self.cv3 = BasicConv(channels[1], fea_channel, kernel_size=1, padding=0)
+
+    def forward(self, inputs):
+        C4_lat = self.cv1(inputs[0])
+        C5_lat = self.cv2(inputs[1])
+        Cglb_lat = self.cv3(self.gap(inputs[1]))
+        return C4_lat + C5_lat + Cglb_lat
 
 
-def fpn_feature_extractor(channels, fpn_level, fea_channel):
-    layers = [BasicConv(fea_channel * len(channels), fea_channel, kernel_size=3, stride=1, padding=1)]
+def fpn_feature_extractor(fpn_level, fea_channel):
+    layers = [BasicConv(fea_channel, fea_channel, kernel_size=3, stride=1, padding=1)]
     for _ in range(fpn_level - 1):
         layers.append(BasicConv(fea_channel, fea_channel, kernel_size=3, stride=2, padding=1))
     return nn.ModuleList(layers)
@@ -37,18 +47,13 @@ class FPNNeck(nn.Module):
     def __init__(self, fpn_level, channels, fea_channel):
         super(FPNNeck, self).__init__()
         self.fpn_level = fpn_level
-        self.ft_module = feature_transform_module(channels, fea_channel)
-        self.pyramid_ext = fpn_feature_extractor(channels, self.fpn_level, fea_channel)
+        self.ft_module = CEM(channels, fea_channel)
+        self.pyramid_ext = fpn_feature_extractor(self.fpn_level, fea_channel)
         self.lateral_convs = lateral_convs(self.fpn_level, fea_channel)
         self.fpn_convs = fpn_convs(self.fpn_level, fea_channel)
         
     def forward(self, x):
-
-        transformed_features = list()
-        for (k, v) in zip(x, self.ft_module):
-            transformed_features.append(v(k))
-        x = torch.cat(transformed_features, 1)
-
+        x = self.ft_module(x)
         fpn_fea = list()
         for v in self.pyramid_ext:
             x = v(x)

@@ -18,7 +18,7 @@ import torch.utils.data as data
 from data import AnnotationTransform, BaseTransform
 from data import detection_collate, preproc
 from utils import PriorBox, Detect
-from utils import MultiBoxLoss
+from utils import MultiBoxLoss, HintLoss
 from utils import Timer
 from utils.box import nms
 cudnn.benchmark = True
@@ -37,7 +37,7 @@ cudnn.benchmark = True
 ### For Reproducibility ###
 
 parser = argparse.ArgumentParser(description='Pytorch Training')
-parser.add_argument('--neck', default='pafpn')
+parser.add_argument('--neck', default='fpn')
 parser.add_argument('--backbone', default='resnet18')
 parser.add_argument('--dataset', default='VOC')
 parser.add_argument('--save_folder', default='weights/')
@@ -51,6 +51,7 @@ parser.add_argument('--warm_iter', default=500, type=int)
 parser.add_argument('--trained_model', help='Location to trained model')
 parser.add_argument('--draw', action='store_true', help='Draw detection results')
 parser.add_argument('--mixup', action='store_true')
+parser.add_argument('--kd', default='mse', help='Hint loss')
 args = parser.parse_args()
 print(args)
 
@@ -110,13 +111,14 @@ def load_dataset():
 
 
 def save_weights(model):
-    save_path = os.path.join(args.save_folder, '{}_{}_{}_size{}_anchor{}{}_bmvc_projection.pth'.format(
+    save_path = os.path.join(args.save_folder, '{}_{}_{}_size{}_anchor{}{}_kd{}.pth'.format(
         args.dataset,
         args.neck,
         args.backbone,
         args.size,
         args.base_anchor_size,
         ('_MG' if args.mutual_guide else ''),
+        args.kd,
         ))
     print('Saving to {}'.format(save_path))
     torch.save(model.state_dict(), save_path)
@@ -127,24 +129,39 @@ if __name__ == '__main__':
     print('Loading Dataset...')
     (show_classes, num_classes, dataset, epoch_size, max_iter, testset) = load_dataset()
 
-    print('Loading Network...')
+    print('Loading student Network...')
+    from models.detector import Detector
+    student = Detector(args.size, num_classes, args.backbone, args.neck)
+    student.train()
+    student.cuda()
+    num_param = sum(p.numel() for p in student.parameters() if p.requires_grad)
+    print('Total param of student model is : {:e}'.format(num_param))
+
+    print('Loading teacher Network...')
+    assert args.backbone in ['resnet18', 'repvgg-A0']
+    backbone = 'resnet34' if args.backbone=='resnet18' else 'repvgg-A2'
     from models.detector2 import Detector
-    model = Detector(args.size, num_classes, args.backbone, args.neck)
-    model.train()
-    model.cuda()
-    num_param = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    print('Total param is : {:e}'.format(num_param))
+    teacher = Detector(args.size, num_classes, backbone, 'pafpn')
+    teacher.eval()
+    teacher.cuda()
+    trained_model = 'weights/{}_pafpn_{}_size320_anchor24.0_MG.pth'.format(args.dataset, 'resnet34' if args.backbone=='resnet18' else 'repvgg-A2')
+    print('loading weights from', trained_model)
+    state_dict = torch.load(trained_model)
+    teacher.load_state_dict(state_dict, strict=True)
+    num_param = sum(p.numel() for p in teacher.parameters() if p.requires_grad)
+    print('Total param of teacher model is : {:e}'.format(num_param))
 
     print('Preparing Optimizer & AnchorBoxes...')
-    optimizer = optim.SGD(tencent_trick(model), lr=args.lr, momentum=0.9, weight_decay=0.0005)
-    criterion = MultiBoxLoss(mutual_guide=args.mutual_guide)
+    optimizer = optim.SGD(tencent_trick(student), lr=args.lr, momentum=0.9, weight_decay=0.0005)
+    criterion_od = MultiBoxLoss(mutual_guide=args.mutual_guide)
+    criterion_kd = HintLoss(args.kd)
     priors = PriorBox(args.base_anchor_size, args.size)
     priors = priors.cuda()
 
     if args.trained_model is not None:
         print('loading weights from', args.trained_model)
         state_dict = torch.load(args.trained_model)
-        model.load_state_dict(state_dict, strict=False)
+        student.load_state_dict(state_dict, strict=True)
     else:
         print('Training {}-{} on {} with {} images'.format(args.neck, args.backbone, dataset.name, len(dataset)))
         os.makedirs(args.save_folder, exist_ok=True)
@@ -170,17 +187,24 @@ if __name__ == '__main__':
                 index = torch.randperm(args.batch_size).cuda()
                 inputs = lam*images + (1-lam)*images[index,:]
                 targets_a, targets_b = targets, [ targets[index[i]] for i in range(args.batch_size)]
-                outputs = model(inputs)
-                (loss_l_a, loss_c_a) = criterion(outputs[:2], priors, targets_a)
-                (loss_l_b, loss_c_b) = criterion(outputs[:2], priors, targets_b)
+                with torch.no_grad():
+                    out_t = teacher(inputs)
+                out_s = student(inputs)
+                (loss_l_a, loss_c_a) = criterion_od(out_s[:2], priors, targets_a)
+                loss_kd_a = criterion_kd(out_t[2].detach(), out_s[2], out_t[1].detach(), out_s[1], priors, targets_a)
+                (loss_l_b, loss_c_b) = criterion_od(out_s[:2], priors, targets_b)
+                loss_kd_b = criterion_kd(out_t[2].detach(), out_s[2], out_t[1].detach(), out_s[1], priors, targets_b)
                 loss_l = lam * loss_l_a + (1 - lam) * loss_l_b
                 loss_c = lam * loss_c_a + (1 - lam) * loss_c_b
-                loss = loss_l + loss_c
+                loss_kd = lam * loss_kd_a + (1 - lam) * loss_kd_b
             else:
                 # non mixup
-                out = model(images)
-                (loss_l, loss_c) = criterion(out[:2], priors, targets)
-                loss = loss_l + loss_c
+                with torch.no_grad():
+                    out_t = teacher(images)
+                out_s = student(images)
+                (loss_l, loss_c) = criterion_od(out_s[:2], priors, targets)
+                loss_kd = criterion_kd(out_t[2].detach(), out_s[2], out_t[1].detach(), out_s[1], priors, targets)
+            loss = loss_l + loss_c + loss_kd
 
             optimizer.zero_grad()
             loss.backward()
@@ -188,24 +212,25 @@ if __name__ == '__main__':
             load_time = timer.toc()
 
             if iteration % 100 == 0:
-                print('Epoch {}, iter {}, lr {:.6f}, loss_l {:.2f}, loss_c {:.2f}, loss {:.2f}, time {:.2f}s, eta {:.2f}h'.format(
+                print('Epoch {}, iter {}, lr {:.6f}, loss_l {:.2f}, loss_c {:.2f}, loss_kd {:.2f}, loss {:.2f}, time {:.2f}s, eta {:.2f}h'.format(
                     epoch,
                     iteration,
                     optimizer.param_groups[0]['lr'],
                     loss_l.item(),
                     loss_c.item(),
+                    loss_kd.item(),
                     loss.item(),
                     load_time,
                     load_time * (max_iter - iteration) / 3600,
                     ))
                 timer.clear()
-        save_weights(model)
+        save_weights(student)
     
     print('Start Evaluation...')
     thresh=0.01
     max_per_image=300
-    model.eval()
-    for module in model.modules():
+    student.eval()
+    for module in student.modules():
         if hasattr(module, 'switch_to_deploy'):
             module.switch_to_deploy()
     detector = Detect(num_classes)
@@ -224,7 +249,7 @@ if __name__ == '__main__':
             (x, scale) = (x.cuda(), scale.cuda())
 
             _t['im_detect'].tic()
-            out = model(x)  # forward pass
+            out = student.forward_test(x)  # forward pass
             (boxes, scores) = detector.forward(out[:2], priors)
             detect_time = _t['im_detect'].toc()
 

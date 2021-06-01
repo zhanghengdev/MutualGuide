@@ -85,7 +85,7 @@ def load_dataset():
         train_sets = [('2007', 'trainval'), ('2012', 'trainval')]
         dataset = VOCDetection(VOCroot, train_sets, preproc(args.size), AnnotationTransform(), dataset_name='VOC0712trainval')
         epoch_size = len(dataset) // args.batch_size
-        max_iter = 250 * epoch_size
+        max_iter = 48 * epoch_size
         testset = VOCDetection(VOCroot, [('2007', 'test')], None)
     elif args.dataset == 'COCO':
         from data import COCOroot, COCODetection, COCO_CLASSES
@@ -94,7 +94,7 @@ def load_dataset():
         train_sets = [('2017', 'train')]
         dataset = COCODetection(COCOroot, train_sets, preproc(args.size))
         epoch_size = len(dataset) // args.batch_size
-        max_iter = 140 * epoch_size
+        max_iter = 24 * epoch_size
         testset = COCODetection(COCOroot, [('2017', 'val')], None)
     elif args.dataset == 'XML':
         from data import XMLroot, XMLDetection, XML_CLASSES
@@ -102,7 +102,7 @@ def load_dataset():
         num_classes = len(XML_CLASSES)
         dataset = XMLDetection(XMLroot, 'train', XML_CLASSES, preproc(args.size))
         epoch_size = len(dataset) // args.batch_size
-        max_iter = 140 * epoch_size
+        max_iter = 24 * epoch_size
         testset = XMLDetection(XMLroot, 'val', XML_CLASSES, None)
     else:
         raise NotImplementedError('Unkown dataset {}!'.format(args.dataset))

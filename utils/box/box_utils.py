@@ -65,6 +65,46 @@ def jaccard(box_a, box_b):
     return inter / union  # [A,B]
 
 
+def centerness(box_a, box_b):
+    """ Calculate centerness score of center points of box_b
+    according to box_a.
+      Box_a should be (x, y, w, h)
+      Box_b should be (x, y, w, h)
+    Args:
+      box_a: (tensor) bounding boxes, Shape: [A,4].
+      box_b: (tensor) bounding boxes, Shape: [B,4].
+    Return:
+      (tensor) centerness score, Shape: [A,B].
+    """
+    A = box_a.size(0)
+    B = box_b.size(0)
+    anchor_centers = box_b[:, :2].unsqueeze(0).expand(A, B, 2)  # Shape [A, B, 2]
+    gt_boxes = box_a.unsqueeze(1).expand(A, B, 4)
+    left_right = torch.stack((anchor_centers[:,:,0]-gt_boxes[:,:,0],     # x-x1
+                              gt_boxes[:,:,2]-anchor_centers[:,:,0]), 2) # x2-x
+    left_right = (left_right.min(dim=-1)[0] / left_right.max(dim=-1)[0])
+    left_right[left_right < 0] = 0        # points outside gt boxes
+    top_bottom = torch.stack((anchor_centers[:,:,1]-gt_boxes[:,:,1],     # y-y1
+                              gt_boxes[:,:,3]-anchor_centers[:,:,1]), 2) # y2-y
+    top_bottom = (top_bottom.min(dim=-1)[0] / top_bottom.max(dim=-1)[0])
+    top_bottom[top_bottom < 0] = 0        # points outside gt boxes
+    return torch.min(left_right, top_bottom)
+
+
+def get_foreground(truths, priors, mask, idx):
+
+    # overlaps = centerness(truths, priors)   # Shape: [num_obj, num_priors]
+    # (best_truth_overlap, best_truth_idx) = overlaps.max(0)
+    # best_truth_overlap[best_truth_overlap > 0] = 1.0
+    # mask[idx] = best_truth_overlap  # [num_priors] jaccord for each prior
+
+    overlaps = jaccard(truths, point_form(priors))
+    (best_truth_overlap, best_truth_idx) = overlaps.max(0)
+    best_truth_overlap[best_truth_overlap >= 0.5] = 1.0
+    best_truth_overlap[best_truth_overlap < 0.5] = 0.0
+    mask[idx] = best_truth_overlap  # [num_priors] jaccord for each prior
+
+
 def match(truths, priors, labels, loc_t, conf_t, overlap_t, idx):
     """Match each prior box with the ground truth box of the highest jaccard
     overlap, encode the bounding boxes, then return the matched indices

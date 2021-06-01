@@ -8,9 +8,7 @@ from models.base_blocks import BasicConv
 
 
 class CEM(nn.Module):
-
     """Context Enhancement Module"""
-
     def __init__(self, channels, fea_channel):
         super(CEM, self).__init__()
         self.cv1 = BasicConv(channels[0], fea_channel, kernel_size=1, padding=0)

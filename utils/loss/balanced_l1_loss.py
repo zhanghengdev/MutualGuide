@@ -26,15 +26,15 @@ class BalancedL1Loss(nn.Module):
         ):
         diff = torch.abs(pred - target)
         b = np.e ** (self.gamma / self.alpha) - 1
-        smbloss = torch.where(diff < self.beta, self.alpha / b * (b
+        loss = torch.where(diff < self.beta, self.alpha / b * (b
                               * diff + 1) * torch.log(b * diff
                               / self.beta + 1) - self.alpha * diff,
                               self.gamma * diff + self.gamma / b
                               - self.alpha * self.beta)
         if reduction == 'sum':
-            return smbloss.sum()
+            return loss.sum()
         elif reduction == 'mean':
-            return smbloss.mean()
+            return loss.mean()
         else:
-            return smbloss
+            return loss
 
