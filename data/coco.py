@@ -1,101 +1,50 @@
-"""VOC Dataset Classes
-
-Original author: Francisco Massa
-https://github.com/fmassa/vision/blob/voc_dataset/torchvision/datasets/voc.py
-
-Updated by: Ellis Brown, Max deGroot
-"""
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
 
 import os
 import pickle
 import os.path
-import sys
 import torch
 import torch.utils.data as data
-import torchvision.transforms as transforms
 import cv2
 import numpy as np
 import json
-import uuid
+from .data_augment import preproc_for_train
 
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
-from pycocotools import mask as COCOmask
 
 COCOroot = os.path.join('datasets/', 'coco2017/')
-COCO_CLASSES = ( '__background__', # always index 0
-    'person','bicycle','car','motorbike','aeroplane',
-    'bus','train','truck','boat','traffic light',
-    'fire hydrant','stop sign','parking meter','bench',
-    'bird','cat','dog','horse','sheep','cow','elephant',
-    'bear','zebra','giraffe','backpack','umbrella',
-    'handbag','tie','suitcase','frisbee','skis','snowboard',
-    'sports ball','kite','baseball bat','baseball glove',
-    'skateboard','surfboard','tennis racket','bottle',
-    'wine glass','cup','fork','knife','spoon','bowl',
-    'banana','apple','sandwich','orange','broccoli',
-    'carrot','hot dog','pizza','donut','cake','chair',
-    'sofa','pottedplant','bed','diningtable','toilet',
-    'tvmonitor','laptop','mouse','remote','keyboard',
-    'cell phone','microwave','oven','toaster','sink',
-    'refrigerator','book','clock','vase','scissors',
-    'teddy bear','hair drier','toothbrush')
 
 class COCODetection(data.Dataset):
 
-    """VOC Detection Dataset Object
+    """ COCO Detection Dataset Object """
 
-    input is image, target is annotation
-
-    Arguments:
-        root (string): filepath to VOCdevkit folder.
-        image_set (string): imageset to use (eg. 'train', 'val', 'test')
-        transform (callable, optional): transformation to perform on the
-            input image
-        target_transform (callable, optional): transformation to perform on the
-            target `annotation`
-            (eg: take in caption string, return tensor of word indices)
-        dataset_name (string, optional): which dataset to load
-            (default: 'VOC2007')
-    """
-
-    def __init__(self, root, image_sets, preproc=None, target_transform=None,
-                 dataset_name='COCO'):
-        self.root = root
+    def __init__(self, image_sets, size, dataset_name='COCO'):
+        self.root = COCOroot
         self.cache_path = os.path.join(self.root, 'cache')
         self.image_set = image_sets
-        self.preproc = preproc
-        self.target_transform = target_transform
+        self.size = size
         self.name = dataset_name
         self.ids = list()
         self.annotations = list()
-        self._view_map = {
-            'minival2014' : 'val2014',          # 5k val2014 subset
-            'valminusminival2014' : 'val2014',  # val2014 \setminus minival2014
-            'test-dev2015' : 'test2015',
-        }
-
         for (year, image_set) in image_sets:
             coco_name = image_set+year
-            data_name = (self._view_map[coco_name]
-                        if coco_name in self._view_map
-                        else coco_name)
             annofile = self._get_ann_file(coco_name)
-            _COCO = COCO(annofile)
-            self._COCO = _COCO
+            self._COCO = COCO(annofile)
             self.coco_name = coco_name
-            cats = _COCO.loadCats(_COCO.getCatIds())
+            cats = self._COCO.loadCats(self._COCO.getCatIds())
             self._classes = tuple(['__background__'] + [c['name'] for c in cats])
             self.num_classes = len(self._classes)
             self._class_to_ind = dict(zip(self._classes, range(self.num_classes)))
-            self._class_to_coco_cat_id = dict(zip([c['name'] for c in cats], _COCO.getCatIds()))
-            indexes = _COCO.getImgIds()
+            self._class_to_coco_cat_id = dict(zip([c['name'] for c in cats], self._COCO.getCatIds()))
+            indexes = self._COCO.getImgIds()
             self.image_indexes = indexes
-            self.ids.extend([self.image_path_from_index(data_name, index) for index in indexes ])
+            self.ids.extend([self.image_path_from_index(coco_name, index) for index in indexes])
             if image_set.find('test') != -1:
                 print('test set will not load annotations!')
             else:
-                self.annotations.extend(self._load_coco_annotations(coco_name, indexes,_COCO))
+                self.annotations.extend(self._load_coco_annotations(coco_name, indexes, self._COCO))
                 if image_set.find('val') != -1:
                     print('val set will not remove non-valid images!')
                 else:
@@ -106,14 +55,14 @@ class COCODetection(data.Dataset):
                             annotations.append(a)
                     self.ids = ids
                     self.annotations = annotations
+        self.num_classes = len(self.pull_classes())
+
+    def pull_classes(self):
+        return self._classes
 
     def image_path_from_index(self, name, index):
-        """
-        Construct an image path from the image's "index" identifier.
-        """
-        # Example image path for index=119993:
-        #   coco2017/train2017/000000119993.jpg
-        file_name = (str(index).zfill(12) + '.jpg')
+        """ Construct an image path """
+        file_name = (str(index).zfill(12) + '.copy.jpg')
         image_path = os.path.join(self.root, name, file_name)
         assert os.path.exists(image_path), 'Path does not exist: {}'.format(image_path)
         return image_path
@@ -121,7 +70,7 @@ class COCODetection(data.Dataset):
 
     def _get_ann_file(self, name):
         prefix = 'instances' if name.find('test') == -1 else 'image_info'
-        return os.path.join(self.root, 'annotations', prefix + '_' + name + '.json')
+        return os.path.join(self.root, 'annotations', prefix + '_' + name + '.copy.json')
 
 
     def _load_coco_annotations(self, coco_name, indexes, _COCO):
@@ -140,11 +89,7 @@ class COCODetection(data.Dataset):
 
 
     def _annotation_from_index(self, index, _COCO):
-        """
-        Loads COCO bounding-box instance annotations. Crowd instances are
-        handled by marking their overlaps (with all categories) to -1. This
-        overlap value means that crowd "instances" are excluded from training.
-        """
+        """ Loads COCO bounding-box instance annotations """
         im_ann = _COCO.loadImgs(index)[0]
         width = im_ann['width']
         height = im_ann['height']
@@ -166,8 +111,7 @@ class COCODetection(data.Dataset):
 
         res = np.zeros((num_objs, 5))
 
-        # Lookup table to map from COCO category ids to our internal class
-        # indices
+        # Lookup table to map from COCO category ids to our internal class indices
         coco_cat_id_to_class_ind = dict([(self._class_to_coco_cat_id[cls],
                                           self._class_to_ind[cls])
                                          for cls in self._classes[1:]])
@@ -185,51 +129,16 @@ class COCODetection(data.Dataset):
         img_id = self.ids[index]
         target = self.annotations[index]
         img = cv2.imread(img_id, cv2.IMREAD_COLOR)
-        height, width, _ = img.shape
-
-        if self.target_transform is not None:
-            target = self.target_transform(target)
-
-
-        if self.preproc is not None:
-            img, target = self.preproc(img, target)
-
-                    # target = self.target_transform(target, width, height)
-        #print(target.shape)
-
+        img, target = preproc_for_train(img, target, self.size)
         return img, target
 
     def __len__(self):
         return len(self.ids)
 
     def pull_image(self, index):
-        '''Returns the original image object at index in PIL form
-
-        Note: not using self.__getitem__(), as any transformations passed in
-        could mess up this functionality.
-
-        Argument:
-            index (int): index of img to show
-        Return:
-            PIL img
-        '''
+        ''' Returns the original image object at index '''
         img_id = self.ids[index]
         return cv2.imread(img_id, cv2.IMREAD_COLOR)
-
-
-    def pull_tensor(self, index):
-        '''Returns the original image at an index in tensor form
-
-        Note: not using self.__getitem__(), as any transformations passed in
-        could mess up this functionality.
-
-        Argument:
-            index (int): index of img to show
-        Return:
-            tensorized version of img, squeezed
-        '''
-        to_tensor = transforms.ToTensor()
-        return torch.Tensor(self.pull_image(index)).unsqueeze_(0)
 
     def _print_detection_eval_metrics(self, coco_eval):
         IoU_lo_thresh = 0.5

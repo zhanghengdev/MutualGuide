@@ -1,11 +1,13 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+
 import torch
 import torch.nn as nn
 import torch.utils.model_zoo as model_zoo
 
 def conv3x3(in_planes, out_planes, stride=1, groups=1, dilation=1):
     """3x3 convolution with padding"""
-    return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride,
-                     padding=dilation, groups=groups, bias=False, dilation=dilation)
+    return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride, padding=dilation, groups=groups, bias=False, dilation=dilation)
 
 def conv1x1(in_planes, out_planes, stride=1):
     """1x1 convolution"""
@@ -15,11 +17,9 @@ class BasicBlock(nn.Module):
     expansion = 1
     __constants__ = ['downsample']
 
-    def __init__(self, inplanes, planes, stride=1, downsample=None, groups=1,
-                 base_width=64, dilation=1, norm_layer=None):
+    def __init__(self, inplanes, planes, stride=1, downsample=None, groups=1, base_width=64, dilation=1):
         super(BasicBlock, self).__init__()
-        if norm_layer is None:
-            norm_layer = nn.BatchNorm2d
+        norm_layer = nn.BatchNorm2d
         if groups != 1 or base_width != 64:
             raise ValueError('BasicBlock only supports groups=1 and base_width=64')
         if dilation > 1:
@@ -53,11 +53,9 @@ class BasicBlock(nn.Module):
 
 class Bottleneck(nn.Module):
     expansion = 4
-    def __init__(self, inplanes, planes, stride=1, downsample=None, groups=1,
-                 base_width=64, dilation=1, norm_layer=None):
+    def __init__(self, inplanes, planes, stride=1, downsample=None, groups=1, base_width=64, dilation=1):
         super(Bottleneck, self).__init__()
-        if norm_layer is None:
-            norm_layer = nn.BatchNorm2d
+        norm_layer = nn.BatchNorm2d
         width = int(planes * (base_width / 64.)) * groups
         # Both self.conv2 and self.downsample layers downsample the input when stride != 1
         self.conv1 = conv1x1(inplanes, width)
@@ -94,15 +92,29 @@ class Bottleneck(nn.Module):
 
 class ResNetBackbone(nn.Module):
 
-    def __init__(self, depth=18, pretrained=True):
+    def __init__(self, depth=18, pretrained=False):
         super(ResNetBackbone, self).__init__()
         self.inplanes = 64
         self.dilation = 1
         self.groups = 1
         self.base_width = 64
-        self.conv1 = nn.Conv2d(3, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False)
-        self.bn1 = nn.BatchNorm2d(self.inplanes)
-        self.relu = nn.ReLU(inplace=True)
+        if pretrained:
+            self.stem = None
+            self.conv1 = nn.Conv2d(3, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False)
+            self.bn1 = nn.BatchNorm2d(self.inplanes)
+            self.relu = nn.ReLU(inplace=True)
+        else:
+            self.stem = nn.Sequential(
+                nn.Conv2d(3, self.inplanes, kernel_size=3, stride=2, padding=1, bias=False),
+                nn.BatchNorm2d(self.inplanes),
+                nn.ReLU(inplace=True),
+                nn.Conv2d(self.inplanes, self.inplanes, kernel_size=3, stride=1, padding=1, bias=False),
+                nn.BatchNorm2d(self.inplanes),
+                nn.ReLU(inplace=True),
+                nn.Conv2d(self.inplanes, self.inplanes, kernel_size=3, stride=1, padding=1, bias=False),
+                nn.BatchNorm2d(self.inplanes),
+                nn.ReLU(inplace=True),
+                )            
 
         self.depth = depth
         if self.depth == 18:
@@ -130,10 +142,11 @@ class ResNetBackbone(nn.Module):
             101: 'https://download.pytorch.org/models/resnet101-5d3b4d8f.pth',
         }
         pretrained_dict = model_zoo.load_url(pretrained_dict[self.depth])
-        self.load_state_dict(pretrained_dict, strict=False)
+        pretrained_dict.pop('fc.weight')
+        pretrained_dict.pop('fc.bias')
+        self.load_state_dict(pretrained_dict, strict=True)
 
     def _make_layer(self, block, planes, blocks, stride=1, dilate=False):
-        norm_layer = nn.BatchNorm2d
         downsample = None
         previous_dilation = self.dilation
         if dilate:
@@ -142,24 +155,26 @@ class ResNetBackbone(nn.Module):
         if stride != 1 or self.inplanes != planes * block.expansion:
             downsample = nn.Sequential(
                 conv1x1(self.inplanes, planes * block.expansion, stride),
-                norm_layer(planes * block.expansion),
+                nn.BatchNorm2d(planes * block.expansion),
             )
 
         layers = []
         layers.append(block(self.inplanes, planes, stride, downsample, self.groups,
-                            self.base_width, previous_dilation, norm_layer))
+                            self.base_width, previous_dilation))
         self.inplanes = planes * block.expansion
         for _ in range(1, blocks):
             layers.append(block(self.inplanes, planes, groups=self.groups,
-                                base_width=self.base_width, dilation=self.dilation,
-                                norm_layer=norm_layer))
+                                base_width=self.base_width, dilation=self.dilation))
 
         return nn.Sequential(*layers)
 
     def forward(self, x):
-        x = self.conv1(x)
-        x = self.bn1(x)
-        x = self.relu(x)
+        if self.stem is not None:
+            x = self.stem(x)
+        else:
+            x = self.conv1(x)
+            x = self.bn1(x)
+            x = self.relu(x)
 
         x = self.layer1(x)
         x = self.layer2(x)

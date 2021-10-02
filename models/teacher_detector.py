@@ -1,5 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
+
 import os
 import torch
 import torch.nn as nn
@@ -27,45 +28,76 @@ def multibox(fpn_level, num_anchors, num_classes, fea_channel):
 
 class Detector(nn.Module):
 
-    def __init__(self, size, num_classes, backbone, neck):
+    def __init__(self, base_size, num_classes, backbone, neck, multi_anchor=True, multi_level=True, pretrained=True):
         super(Detector, self).__init__()
 
         # Params
-        if not size % 64 == 0:
-            raise ValueError('Error: Sorry size {} is not supported!'.format(size))
-        self.fpn_level = (4 if size < 512 else 5)
         self.num_classes = num_classes - 1
-        self.num_anchors = 6
+        self.num_anchors = 6 if multi_anchor else 1
+        if multi_level:
+            self.fpn_level = (4 if base_size < 512 else 5)
+        else:
+            self.fpn_level = 1
 
         # Backbone network
         if backbone == 'resnet18':
             from models.backbone.resnet_backbone import ResNetBackbone
-            self.backbone = ResNetBackbone(depth=18, pretrained=True)
+            self.backbone = ResNetBackbone(depth=18, pretrained=pretrained)
             channels = (256, 512)
             self.fea_channel = 256
         elif backbone == 'resnet34':
             from models.backbone.resnet_backbone import ResNetBackbone
-            self.backbone = ResNetBackbone(depth=34, pretrained=True)
+            self.backbone = ResNetBackbone(depth=34, pretrained=pretrained)
             channels = (256, 512)
             self.fea_channel = 256
-        elif backbone == 'repvgg-A0':
-            from models.backbone.repvgg_backbone import REPVGGBackbone
-            self.backbone = REPVGGBackbone(version='A0', pretrained=True)
-            channels = (192, 1280)
+        elif backbone == 'resnet50':
+            from models.backbone.resnet_backbone import ResNetBackbone
+            self.backbone = ResNetBackbone(depth=50, pretrained=pretrained)
+            channels = (256*4, 512*4)
             self.fea_channel = 256
-        elif backbone == 'repvgg-A2':
-            from models.backbone.repvgg_backbone import REPVGGBackbone
-            self.backbone = REPVGGBackbone(version='A2', pretrained=True)
-            channels = (384, 1408)
+        elif backbone == 'vgg11':
+            from models.backbone.vgg_backbone import VGGBackbone
+            self.backbone = VGGBackbone(depth=11, pretrained=pretrained)
+            channels = (512, 512)
             self.fea_channel = 256
         elif backbone == 'vgg16':
             from models.backbone.vgg_backbone import VGGBackbone
-            self.backbone = VGGBackbone(pretrained=True)
+            self.backbone = VGGBackbone(depth=16, pretrained=pretrained)
             channels = (512, 512)
             self.fea_channel = 256
-        elif backbone == 'shufflenet':
+        elif backbone == 'repvgg-A0':
+            from models.backbone.repvgg_backbone import REPVGGBackbone
+            self.backbone = REPVGGBackbone(version='A0', pretrained=pretrained)
+            channels = (192, 1280)
+            self.fea_channel = 256
+        elif backbone == 'repvgg-A1':
+            from models.backbone.repvgg_backbone import REPVGGBackbone
+            self.backbone = REPVGGBackbone(version='A1', pretrained=pretrained)
+            channels = (256, 1280)
+            self.fea_channel = 256
+        elif backbone == 'repvgg-A2':
+            from models.backbone.repvgg_backbone import REPVGGBackbone
+            self.backbone = REPVGGBackbone(version='A2', pretrained=pretrained)
+            channels = (384, 1408)
+            self.fea_channel = 256
+        elif backbone == 'repvgg-B1':
+            from models.backbone.repvgg_backbone import REPVGGBackbone
+            self.backbone = REPVGGBackbone(version='B1', pretrained=pretrained)
+            channels = (512, 2048)
+            self.fea_channel = 256
+        elif backbone == 'repvgg-B2':
+            from models.backbone.repvgg_backbone import REPVGGBackbone
+            self.backbone = REPVGGBackbone(version='B2', pretrained=pretrained)
+            channels = (640, 2560)
+            self.fea_channel = 256
+        elif backbone == 'shufflenet-0.5':
             from models.backbone.shufflenet_backbone import ShuffleNetBackbone
-            self.backbone = ShuffleNetBackbone(pretrained=True)
+            self.backbone = ShuffleNetBackbone(width=0.5, pretrained=pretrained)
+            channels = (96, 192)
+            self.fea_channel = 128
+        elif backbone == 'shufflenet-1.0':
+            from models.backbone.shufflenet_backbone import ShuffleNetBackbone
+            self.backbone = ShuffleNetBackbone(width=1.0, pretrained=pretrained)
             channels = (232, 464)
             self.fea_channel = 128
         else:
@@ -81,13 +113,14 @@ class Detector(nn.Module):
         elif neck == 'pafpn':
             from models.neck.pafpn_neck import PAFPNNeck
             self.neck = PAFPNNeck(self.fpn_level, channels, self.fea_channel)
+        elif neck == 'yolof':
+            from models.neck.yolof_neck import YOLOFNeck
+            self.neck = YOLOFNeck(channels, self.fea_channel)
         else:
             raise ValueError('Error: Sorry neck {} is not supported!'.format(neck))
 
         # Detection Head
-
         (self.loc, self.conf) = multibox(self.fpn_level, self.num_anchors, self.num_classes, self.fea_channel)
-
         bias_value = 0
         for modules in self.loc:
             torch.nn.init.normal_(modules[-1].weight, std=0.01)
@@ -99,24 +132,49 @@ class Detector(nn.Module):
             torch.nn.init.normal_(modules[-1].weight, std=0.01)
             torch.nn.init.constant_(modules[-1].bias, bias_value)
 
+
+    def deploy(self):
+        for module in self.modules():
+            if hasattr(module, 'switch_to_deploy'):
+                module.switch_to_deploy()
+        self.eval()
+
+
     def forward(self, x):
-        fea = list()
-        loc = list()
-        conf = list()
 
         x = self.backbone(x)
         fp = self.neck(x)
 
-        for (i, (x, l, c)) in enumerate(zip(fp, self.loc, self.conf)):
+        fea = list()
+        loc = list()
+        conf = list()
+        for (x, l, c) in zip(fp, self.loc, self.conf):
             fea.append(x.permute(0, 2, 3, 1).contiguous())
             loc.append(l(x).permute(0, 2, 3, 1).contiguous())
             conf.append(c(x).permute(0, 2, 3, 1).contiguous())
-
         fea = torch.cat([o.view(o.size(0), -1) for o in fea], 1)
         loc = torch.cat([o.view(o.size(0), -1) for o in loc], 1)
         conf = torch.cat([o.view(o.size(0), -1) for o in conf], 1)
         return (
             loc.view(loc.size(0), -1, 4), 
-            conf.view(conf.size(0), -1, self.num_classes), 
+            conf.view(conf.size(0), -1, self.num_classes),
             fea.view(conf.size(0), -1, self.fea_channel),
+            )
+
+
+    def forward_test(self, x):
+
+        x = self.backbone(x)
+        fp = self.neck(x)
+
+        loc = list()
+        conf = list()
+        for (x, l, c) in zip(fp, self.loc, self.conf):
+            loc.append(l(x).permute(0, 2, 3, 1).contiguous())
+            conf.append(c(x).permute(0, 2, 3, 1).contiguous())
+        loc = torch.cat([o.view(o.size(0), -1) for o in loc], 1)
+        conf = torch.cat([o.view(o.size(0), -1) for o in conf], 1)
+        return (
+            loc.view(loc.size(0), -1, 4), 
+            conf.view(conf.size(0), -1, self.num_classes),
             )

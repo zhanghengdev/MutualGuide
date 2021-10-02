@@ -11,16 +11,22 @@ class CEM(nn.Module):
     """Context Enhancement Module"""
     def __init__(self, channels, fea_channel):
         super(CEM, self).__init__()
-        self.cv1 = BasicConv(channels[0], fea_channel, kernel_size=1, padding=0)
-        self.cv2 = BasicConv(channels[1], fea_channel, kernel_size=1, padding=0, scale_factor=2)
-        self.gap = nn.AdaptiveAvgPool2d(1)
-        self.cv3 = BasicConv(channels[1], fea_channel, kernel_size=1, padding=0)
+        self.conv1 = BasicConv(channels[0], fea_channel, kernel_size=1, padding=0, relu=False)
+        self.conv2 = nn.Sequential(
+            BasicConv(channels[1], fea_channel, kernel_size=1, padding=0, relu=False),
+            nn.Upsample(scale_factor=2, mode='nearest'),
+            )
+        self.conv3 = nn.Sequential(
+            nn.AdaptiveAvgPool2d(1),
+            BasicConv(channels[1], fea_channel, kernel_size=1, padding=0, relu=False),
+            )
+        self.relu = nn.ReLU(inplace=True)
 
     def forward(self, inputs):
-        C4_lat = self.cv1(inputs[0])
-        C5_lat = self.cv2(inputs[1])
-        Cglb_lat = self.cv3(self.gap(inputs[1]))
-        return C4_lat + C5_lat + Cglb_lat
+        C4_lat = self.conv1(inputs[0])
+        C5_lat = self.conv2(inputs[1])
+        Cglb_lat = self.conv3(inputs[1])
+        return self.relu(C4_lat + C5_lat + Cglb_lat)
 
 
 def fpn_feature_extractor(fpn_level, fea_channel):
@@ -76,7 +82,7 @@ class PAFPNNeck(nn.Module):
             laterals[i - 1] = laterals[i - 1] + F.interpolate(laterals[i], size=size, mode='nearest')
         fpn_fea = [fpn_conv(x) for (x, fpn_conv) in zip(laterals, self.fpn_convs)]
         for i in range(0, self.fpn_level - 1):
-            fpn_fea[i + 1] += self.downsample_convs[i](fpn_fea[i])
-        pafpn_fea = [pafpn_conv(x) for (x, pafpn_conv) in zip(fpn_fea, self.pafpn_convs)]
-        return pafpn_fea
+            fpn_fea[i + 1] = fpn_fea[i + 1] + self.downsample_convs[i](fpn_fea[i])
+        laterals = [pafpn_conv(x) for (x, pafpn_conv) in zip(fpn_fea, self.pafpn_convs)]
+        return laterals
 

@@ -9,7 +9,7 @@ import time
 
 
 class Timer(object):
-    """A simple timer."""
+    """ A simple timer """
     def __init__(self):
         self.total_time = 0.
         self.calls = 0

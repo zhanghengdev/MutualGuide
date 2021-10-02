@@ -16,6 +16,8 @@ import torchvision.transforms as transforms
 from torch.autograd import Variable
 import torch.utils.data as data
 from apex import amp
+from apex.parallel import convert_syncbn_model
+from apex.parallel import DistributedDataParallel as DDP
 from data import detection_collate, preproc_for_test
 from utils import PriorBox, Detect
 from utils import MultiBoxLoss
@@ -50,12 +52,15 @@ parser.add_argument('--seq_matcher', action='store_true')
 parser.add_argument('--base_anchor_size', default=24.0, type=float)
 parser.add_argument('--size', default=320, type=int)
 parser.add_argument('--eval_thresh', default=0.05, type=float)
-parser.add_argument('--batch_size', default=32, type=int)
+parser.add_argument('--batch_size', default=8, type=int)
 parser.add_argument('--lr', default=1e-2, type=float)
 parser.add_argument('--warm_iter', default=500, type=int)
 parser.add_argument('--trained_model', help='Location to trained model')
+parser.add_argument('--local_rank', type=int, default=0)
+parser.add_argument('--ngpu', default=1, type=int)
 parser.add_argument('--draw', action='store_true', help='Draw detection results')
 args = parser.parse_args()
+args.warm_iter = args.warm_iter // args.ngpu
 print(args)
 
 
@@ -64,20 +69,20 @@ def load_dataset():
         from data import VOCDetection
         train_sets = [('2007', 'trainval'), ('2012', 'trainval')]
         dataset = VOCDetection(train_sets, args.size)
-        epoch_size = len(dataset) // args.batch_size
+        epoch_size = len(dataset) // args.batch_size // args.ngpu
         max_iter = 70 * epoch_size
         testset = VOCDetection([('2007', 'test')], args.size)
     elif args.dataset == 'COCO':
         from data import COCODetection
         train_sets = [('2017', 'train')]
         dataset = COCODetection(train_sets, args.size)
-        epoch_size = len(dataset) // args.batch_size
-        max_iter = 140 * epoch_size
+        epoch_size = len(dataset) // args.batch_size // args.ngpu
+        max_iter = 150 * epoch_size
         testset = COCODetection([('2017', 'val')], args.size)
     elif args.dataset == 'XML':
         from data import XMLDetection
         dataset = XMLDetection('train', args.size)
-        epoch_size = len(dataset) // args.batch_size
+        epoch_size = len(dataset) // args.batch_size // args.ngpu
         max_iter = 100 * epoch_size
         testset = XMLDetection('val', args.size)
     else:
@@ -86,7 +91,11 @@ def load_dataset():
 
 
 def save_weights(model, optimizer):
-    save_path = os.path.join(args.save_folder, '{}_{}_{}_{}_size{}_anchor{}{}_GFocal1011.pth'.format(
+    
+    if args.local_rank != 0:
+        return
+    
+    save_path = os.path.join(args.save_folder, '{}_{}_{}_{}_size{}_anchor{}{}_GFocal1011_ngpu.pth'.format(
         args.dataset,
         ('retina' if args.multi_anchor else 'fcos'),
         args.neck,
@@ -105,23 +114,34 @@ def save_weights(model, optimizer):
 
 if __name__ == '__main__':
 
+    print('Prepare multi GPU training...')
+    print('This precess in on devie GPU-{}'.format(args.local_rank))
+    torch.cuda.set_device(args.local_rank)
+    torch.distributed.init_process_group(
+        'nccl',
+        init_method='env://'
+    )
+    device = torch.device('cuda:{}'.format(args.local_rank))
+
     print('Loading Dataset...')
     (dataset, epoch_size, max_iter, testset) = load_dataset()
 
     print('Loading Optimizer & Network...')
     from models.teacher_detector import Detector
     model = Detector(args.size, dataset.num_classes, args.backbone, args.neck,
-        multi_anchor=args.multi_anchor, multi_level=args.multi_level, pretrained=args.pretrained).cuda()
+        multi_anchor=args.multi_anchor, multi_level=args.multi_level, pretrained=args.pretrained)
+    model = convert_syncbn_model(model)
+    model = model.to(device)
     optimizer = optim.SGD(tencent_trick(model), lr=args.lr, momentum=0.9, weight_decay=0.0005)
-    model, optimizer = amp.initialize(model, optimizer, opt_level="O1")
-    ema_model = ModelEMA(model)
+    # model, optimizer = amp.initialize(model, optimizer, opt_level="O1")
+    # ema_model = ModelEMA(model)
     num_param = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print('Total param is : {:e}'.format(num_param))
 
     print('Preparing Criterion & AnchorBoxes...')
-    criterion = MultiBoxLoss(mutual_guide=args.mutual_guide, multi_anchor=args.multi_anchor)
+    criterion = MultiBoxLoss(mutual_guide=args.mutual_guide, multi_anchor=args.multi_anchor).to(device)
     priors = PriorBox(args.base_anchor_size, args.size, base_size=args.size, 
-        multi_anchor=args.multi_anchor, multi_level=args.multi_level).cuda()
+        multi_anchor=args.multi_anchor, multi_level=args.multi_level).to(device)
 
     if args.trained_model is not None:
         print('Loading weights from', args.trained_model)
@@ -134,47 +154,44 @@ if __name__ == '__main__':
         )
         os.makedirs(args.save_folder, exist_ok=True)
         timer = Timer()
+        train_sampler  = torch.utils.data.distributed.DistributedSampler(dataset)
         for iteration in range(max_iter):
             if iteration % epoch_size == 0:
 
+                # save model
+                save_weights(model, optimizer)
+                
                 # random resize
-                if iteration < 0.8*max_iter and iteration > args.warm_iter:
-                    if args.size == 320:
-                        new_size = 64 * (5 + random.choice([-1,0,1]))
-                    elif args.size == 512:
-                        new_size = 128 * (4 + random.choice([-1,0,1]))
-                    else:
-                        raise ValueError
-                else:
-                    new_size = args.size
+                new_size = args.size
                 print('Switching image size to {}...'.format(new_size))
                 dataset.size = new_size
                 priors = PriorBox(args.base_anchor_size, new_size, base_size=args.size, 
-                    multi_anchor=args.multi_anchor, multi_level=args.multi_level).cuda()
+                    multi_anchor=args.multi_anchor, multi_level=args.multi_level).to(device)
 
                 # create batch iterator
                 rand_loader = data.DataLoader(
-                    dataset, args.batch_size, shuffle=True, num_workers=4, collate_fn=detection_collate
+                    dataset, args.batch_size, shuffle=False, num_workers=4, collate_fn=detection_collate,
+                    pin_memory=False, drop_last=True, sampler=train_sampler,
                 )
                 batch_iterator = iter(rand_loader)
-                ema_model.update_attr(model)
+                # ema_model.update_attr(model)
                 model.train()
 
             # traning iteratoin
             timer.tic()
             adjust_learning_rate(optimizer, args.lr, iteration, args.warm_iter, max_iter)
             (images, targets) = next(batch_iterator)
-            images = Variable(images.cuda())
-            targets = [Variable(anno.cuda()) for anno in targets]
+            images = Variable(images.to(device))
+            targets = [Variable(anno.to(device)) for anno in targets]
             out = model.forward_test(images)
             (loss_l, loss_c) = criterion(out[:2], priors, targets)
             loss = loss_l + loss_c
             optimizer.zero_grad()
-            with amp.scale_loss(loss, optimizer) as scaled_loss:
-                scaled_loss.backward()
-            # loss.backward()
+            # with amp.scale_loss(loss, optimizer) as scaled_loss:
+            #     scaled_loss.backward()
+            loss.backward()
             optimizer.step()
-            ema_model.update(model)
+            # ema_model.update(model)
             load_time = timer.toc()
 
             # logging
@@ -190,85 +207,5 @@ if __name__ == '__main__':
                     load_time * (max_iter - iteration) / 3600,
                     ))
                 timer.clear()
-        model = ema_model.ema
+        # model = ema_model.ema
         save_weights(model, optimizer)
-    
-    print('Start Evaluation...')
-    model.deploy()
-    num_images = len(testset)
-    all_boxes = [
-            [ None for _ in range(num_images) ] for _ in range(testset.num_classes)
-        ]
-    if args.seq_matcher:
-        box_matcher = SeqBoxMatcher()
-    if args.draw:
-        rgbs = dict()
-        os.makedirs("draw/", exist_ok=True)
-        os.makedirs("draw/{}/".format(args.dataset), exist_ok=True)
-    
-    _t = {'im_detect': Timer(), 'im_nms': Timer()}
-    for i in range(num_images):
-        # prepare image to detect
-        img = testset.pull_image(i)
-        scale = torch.Tensor(
-                [ img.shape[1], img.shape[0], img.shape[1], img.shape[0] ]
-            ).cuda()
-        x = torch.from_numpy(
-                preproc_for_test(img, args.size)
-            ).unsqueeze(0).cuda()
-
-        # measure model inference time 
-        _t['im_detect'].tic()
-        with torch.no_grad():
-            out = model.forward_test(x)
-        detect_time = _t['im_detect'].toc()
-
-        # non maximum suppression
-        _t['im_nms'].tic()
-        (boxes, scores) = Detect(out, priors, scale)
-        if args.seq_matcher:
-            boxes, scores = box_matcher.update(boxes, scores)
-        for j in range(1, testset.num_classes):
-            inds = np.where(scores[:, j-1] > args.eval_thresh)[0]
-            if len(inds) == 0:
-                all_boxes[j][i] = np.empty([0, 5], dtype=np.float32)
-            else:
-                all_boxes[j][i] = np.hstack(
-                        (boxes[inds], scores[inds, j-1:j])
-                    ).astype(np.float32)
-        nms_time = _t['im_nms'].toc()
-
-        # draw bounding boxes on images
-        if args.draw:
-            for j in range(1, testset.num_classes):
-                c_dets = all_boxes[j][i]
-                for line in c_dets[::-1]:
-                    x1, y1, x2, y2 = int(line[0]), int(line[1]), int(line[2]), int(line[3])
-                    score = float(line[4])
-                    if score > .25:
-                        if j not in rgbs:
-                            r = random.randint(0,255)
-                            g = random.randint(0,255)
-                            b = random.randint(0,255)
-                            rgbs[j] = [r,g,b]
-                        rgb = rgbs[j]
-                        label = '{}{:.2f}'.format(testset.pull_classes()[j], score)
-                        cv2.rectangle(img, (x1, y1), (x2, y2), rgb, 2)
-                        cv2.rectangle(img, (x1, y1-15), (x1+len(label)*9, y1), rgb, -1)
-                        cv2.putText(img, label, (x1, y1-5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,255), 1, cv2.LINE_AA)
-            label = 'MutualGuide ({}x{}) : {:.2f}ms on {}'.format(args.size, args.size, detect_time*1000, torch.cuda.get_device_name(0))
-            cv2.rectangle(img, (0, 0), (0+len(label)*9, 20), [0,0,0], -1)
-            cv2.putText(img, label, (0, 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,255), 1, cv2.LINE_AA)
-            filename = 'draw/{}/{}.jpg'.format(args.dataset, i)
-            cv2.imwrite(filename, img)
-
-        # logging
-        if i == 10:
-            _t['im_detect'].clear()
-            _t['im_nms'].clear()
-        if i % math.floor(num_images / 10) == 0 and i > 0:
-            print('[{}/{}]Time results: detect={:.2f}ms,nms={:.2f}ms,'.format(
-                    i, num_images, detect_time * 1000, nms_time * 1000)
-                )
-    testset.evaluate_detections(all_boxes)
-

@@ -1,3 +1,6 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+
 import torch
 import torch.nn as nn
 import numpy as np
@@ -101,9 +104,8 @@ class RepVGGBlock(nn.Module):
 
 class REPVGGBackbone(nn.Module):
 
-    def __init__(self, version='A2', override_groups_map=None, deploy=False, pretrained=True):
+    def __init__(self, version='A2', override_groups_map=None, deploy=False, pretrained=False):
         super(REPVGGBackbone, self).__init__()
-
 
         self.version = version
         if self.version == 'A0':
@@ -127,6 +129,8 @@ class REPVGGBackbone(nn.Module):
         elif self.version == 'B3':
             num_blocks=[4, 6, 16, 1]
             width_multiplier=[3, 3, 3, 5]
+        else:
+            raise ValueError
 
 
         assert len(width_multiplier) == 4
@@ -152,7 +156,10 @@ class REPVGGBackbone(nn.Module):
         print('Loading Pytorch pretrained weights...')
         pretrained_dict = {
             'A0': 'weights/REGVGGPretrained/RepVGG-A0-train.pth',
+            'A1': 'weights/REGVGGPretrained/RepVGG-A1-train.pth',
             'A2': 'weights/REGVGGPretrained/RepVGG-A2-train.pth',
+            'B1': 'weights/REGVGGPretrained/RepVGG-B1-train.pth',
+            'B2': 'weights/REGVGGPretrained/RepVGG-B2-train.pth',
         }
         pretrained_dict = torch.load(pretrained_dict[self.version])
         pretrained_dict.pop('linear.weight')
@@ -178,30 +185,4 @@ class REPVGGBackbone(nn.Module):
         out2 = self.stage4(out1)
         return out1, out2
 
-#   Use like this:
-#   train_model = create_RepVGG_A0(deploy=False)
-#   train train_model
-#   deploy_model = repvgg_convert(train_model, create_RepVGG_A0, save_path='repvgg_deploy.pth')
-def repvgg_model_convert(model:torch.nn.Module, build_func, save_path=None):
-    converted_weights = {}
-    for name, module in model.named_modules():
-        if hasattr(module, 'repvgg_convert'):
-            kernel, bias = module.repvgg_convert()
-            converted_weights[name + '.rbr_reparam.weight'] = kernel
-            converted_weights[name + '.rbr_reparam.bias'] = bias
-        elif isinstance(module, torch.nn.Linear):
-            converted_weights[name + '.weight'] = module.weight.detach().cpu().numpy()
-            converted_weights[name + '.bias'] = module.bias.detach().cpu().numpy()
-        else:
-            print(name, type(module))
-    del model
 
-    deploy_model = build_func(deploy=True)
-    for name, param in deploy_model.named_parameters():
-        print('deploy param: ', name, param.size(), np.mean(converted_weights[name]))
-        param.data = torch.from_numpy(converted_weights[name]).float()
-
-    if save_path is not None and save_path.endswith('pth'):
-        torch.save(deploy_model.state_dict(), save_path)
-
-    return deploy_model

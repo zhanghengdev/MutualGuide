@@ -1,18 +1,37 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+
 import os
 import os.path
 import random
 import torch
 import torch.utils.data as data
-import torchvision.transforms as transforms
 import cv2
 import xml.etree.ElementTree as ET
 import numpy as np
 from .voc_eval import voc_eval
 import pickle
 import numpy as np
+from .data_augment import preproc_for_train
 
-XMLroot = 'datasets/FLIR/'
-XML_CLASSES = ['__background__', 'person', 'car', 'bicycle', 'dog']
+XMLroot = 'datasets/XML/'
+XML_CLASSES = ( '__background__', # always index 0
+    'person','bicycle','car','motorbike','aeroplane',
+    'bus','train','truck','boat','traffic light',
+    'fire hydrant','stop sign','parking meter','bench',
+    'bird','cat','dog','horse','sheep','cow','elephant',
+    'bear','zebra','giraffe','backpack','umbrella',
+    'handbag','tie','suitcase','frisbee','skis','snowboard',
+    'sports ball','kite','baseball bat','baseball glove',
+    'skateboard','surfboard','tennis racket','bottle',
+    'wine glass','cup','fork','knife','spoon','bowl',
+    'banana','apple','sandwich','orange','broccoli',
+    'carrot','hot dog','pizza','donut','cake','chair',
+    'sofa','pottedplant','bed','diningtable','toilet',
+    'tvmonitor','laptop','mouse','remote','keyboard',
+    'cell phone','microwave','oven','toaster','sink',
+    'refrigerator','book','clock','vase','scissors',
+    'teddy bear','hair drier','toothbrush')
 
 class AnnotationTransform(object):
     def __init__(self, classes):
@@ -33,57 +52,39 @@ class AnnotationTransform(object):
         return res
 
 class XMLDetection(data.Dataset):
-    def __init__(self, root, image_sets, classes, preproc=None):
-        self.root = root
+    def __init__(self, image_sets, size):
+        self.root = XMLroot
         self.image_set = image_sets
-        self.preproc = preproc
-        self.classes = classes
-        self.target_transform = AnnotationTransform(self.classes)
+        self.size = size
+        self.target_transform = AnnotationTransform(XML_CLASSES)
         self._annopath = os.path.join(self.root, 'Annotations', '%s.xml')
+        self._imgpath = os.path.join(self.root, 'JPEGImages', '%s.jpg')
+        self.num_classes = len(self.pull_classes())
         self.ids = list()
         self.name = os.path.join(self.root, self.image_set + '.txt')
         for line in open(self.name):
             self.ids.append(line.strip())
         print('Using custom dataset. Reading {}...'.format(self.name))
 
+    def pull_classes(self):
+        return XML_CLASSES
+
     def __getitem__(self, index):
         img_id = self.ids[index]
         target = ET.parse(self._annopath % img_id).getroot()
-        img = self.pull_image(index)
+        img = cv2.imread(self._imgpath % img_id, cv2.IMREAD_COLOR)
         target = self.target_transform(target)
-        if self.preproc is not None:
-            img, target = self.preproc(img, target)
+        img, target = preproc_for_train(img, target, self.size)
         return img, target
 
     def __len__(self):
         return len(self.ids)
 
-    def pull_id(self, index):
-        return self.ids[index]
-
-    def pull_classes(self):
-        return KAIST_CLASSES
-
     def pull_image(self, index):
         img_id = self.ids[index]
-        img_path = os.path.join(self.root, 'JPEGImages', '{}.jpeg'.format(img_id))
-        img = cv2.imread(img_path, cv2.IMREAD_COLOR)
-        return img
-
-    def pull_anno(self, index):
-        img_id = self.ids[index]
-        target = ET.parse(self._annopath % img_id).getroot()
-        return self.target_transform(target)
+        return cv2.imread(self._imgpath % img_id, cv2.IMREAD_COLOR)
 
     def evaluate_detections(self, all_boxes):
-        """
-        all_boxes is a list of length number-of-classes.
-        Each list element is a list of length number-of-images.
-        Each of those list elements is either an empty list []
-        or a numpy array of detection.
-
-        all_boxes[class][image] = [] or np.array of shape #dets x 5
-        """
         output_dir = os.path.join(self.root, 'eval')
         self._write_voc_results_file(all_boxes)
         results = []
@@ -104,10 +105,9 @@ class XMLDetection(data.Dataset):
         return path
 
     def _write_voc_results_file(self, all_boxes):
-        for cls_ind, cls in enumerate(self.classes):
+        for cls_ind, cls in enumerate(XML_CLASSES):
             if cls == '__background__':
                 continue
-            #print('Writing {} VOC results file'.format(cls))
             filename = self._get_voc_results_file_template().format(cls)
             with open(filename, 'wt') as f:
                 for im_ind, index in enumerate(self.ids):
@@ -127,12 +127,11 @@ class XMLDetection(data.Dataset):
         imagesetfile = os.path.join(rootpath, name+'.txt')
         cachedir = os.path.join(self.root, 'annotations_cache')
         aps = []
-        # The PASCAL VOC metric changed in 2010
         use_07_metric = True
         #print('VOC07 metric? ' + ('Yes' if use_07_metric else 'No'))
         if output_dir is not None and not os.path.isdir(output_dir):
             os.mkdir(output_dir)
-        for i, cls in enumerate(self.classes):
+        for i, cls in enumerate(XML_CLASSES):
 
             if cls == '__background__':
                 continue

@@ -1,3 +1,6 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+
 import torch
 import torch.nn as nn
 import torch.utils.model_zoo as model_zoo
@@ -60,10 +63,17 @@ class InvertedResidual(nn.Module):
 
 
 class ShuffleNetBackbone(nn.Module):
-    def __init__(self, pretrained=True):
+    def __init__(self, width=1.0, pretrained=False):
         super(ShuffleNetBackbone, self).__init__()
-        stages_repeats=[4, 8, 4]
-        stages_out_channels=[24, 116, 232, 464, 1024]
+        self.width = width
+        if self.width == 0.5:
+            stages_repeats=[4, 8, 4]
+            stages_out_channels=[24, 48, 96, 192, 1024]
+        elif self.width == 1.0:
+            stages_repeats=[4, 8, 4]
+            stages_out_channels=[24, 116, 232, 464, 1024]
+        else:
+            raise ValueError
         inverted_residual=InvertedResidual
 
         if len(stages_repeats) != 3:
@@ -95,7 +105,12 @@ class ShuffleNetBackbone(nn.Module):
 
     def load_pre_trained_weights(self):
         print('Loading Pytorch pretrained weights...')
-        state_dict = model_zoo.load_url('https://download.pytorch.org/models/shufflenetv2_x1-5666bf0f80.pth')
+        if self.width == 0.5:
+            state_dict = model_zoo.load_url('https://download.pytorch.org/models/shufflenetv2_x0.5-f707e7126e.pth')
+        elif self.width == 1.0:
+            state_dict = model_zoo.load_url('https://download.pytorch.org/models/shufflenetv2_x1-5666bf0f80.pth')
+        else:
+            raise ValueError
         self.load_state_dict(state_dict, strict=False)
 
     def forward(self, x):

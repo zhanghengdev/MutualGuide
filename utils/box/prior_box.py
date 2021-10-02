@@ -9,13 +9,21 @@ from math import sqrt as sqrt
 from itertools import product as product
 
 
-def PriorBox(base_anchor, size):
+def PriorBox(base_anchor, size, base_size, multi_anchor=True, multi_level=True):
+    
     """Predefined anchor boxes"""
     
-    if not size % 64 == 0:
-        raise ValueError('Error: Sorry size {} is not supported!'.format(size))
-    repeat = (4 if size < 512 else 5)
-    feature_map = [math.ceil(size / 2 ** (3 + i)) for i in range(repeat)]
+    if base_size == 320:
+        repeat = 4
+    elif base_size == 512:
+        repeat = 5
+    else:
+        raise ValueError('Error: Sorry size {} is not supported!'.format(base_size))
+
+    if multi_level:
+        feature_map = [math.ceil(size / 2 ** (3 + i)) for i in range(repeat)]
+    else:
+        feature_map = [math.ceil(size / 2 ** 4)]
 
     mean = []
     for (k, (f_h, f_w)) in enumerate(zip(feature_map, feature_map)):
@@ -26,12 +34,13 @@ def PriorBox(base_anchor, size):
 
             anchor = base_anchor * 2 ** k / size
             mean += [cx, cy, anchor, anchor]
-            mean += [cx, cy, anchor * sqrt(2), anchor / sqrt(2)]
-            mean += [cx, cy, anchor / sqrt(2), anchor * sqrt(2)]
-            anchor *= sqrt(2)
-            mean += [cx, cy, anchor, anchor]
-            mean += [cx, cy, anchor * sqrt(2), anchor / sqrt(2)]
-            mean += [cx, cy, anchor / sqrt(2), anchor * sqrt(2)]
+            if multi_anchor:
+                mean += [cx, cy, anchor * sqrt(2), anchor / sqrt(2)]
+                mean += [cx, cy, anchor / sqrt(2), anchor * sqrt(2)]
+                anchor *= sqrt(2)
+                mean += [cx, cy, anchor, anchor]
+                mean += [cx, cy, anchor * sqrt(2), anchor / sqrt(2)]
+                mean += [cx, cy, anchor / sqrt(2), anchor * sqrt(2)]
 
     output = torch.Tensor(mean).view(-1, 4)
     output.clamp_(max=1, min=0)

@@ -1,53 +1,37 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+
 import os
 import pickle
 import os.path
 import sys
 import torch
 import torch.utils.data as data
-import torchvision.transforms as transforms
 from PIL import Image, ImageDraw, ImageFont
 import cv2
 import numpy as np
 from .voc_eval import voc_eval
+from .data_augment import preproc_for_train
 import xml.etree.ElementTree as ET
 
 
+VOCroot = os.path.join('datasets/', 'VOCdevkit/')
 VOC_CLASSES = ( '__background__', # always index 0
     'aeroplane', 'bicycle', 'bird', 'boat',
     'bottle', 'bus', 'car', 'cat', 'chair',
     'cow', 'diningtable', 'dog', 'horse',
     'motorbike', 'person', 'pottedplant',
     'sheep', 'sofa', 'train', 'tvmonitor')
-VOCroot = os.path.join('datasets/', 'VOCdevkit/')
-
 
 class AnnotationTransform(object):
 
-    """Transforms a VOC annotation into a Tensor of bbox coords and label index
-    Initilized with a dictionary lookup of classnames to indexes
+    """ Transforms a VOC annotation into a Tensor of bbox  """
 
-    Arguments:
-        class_to_ind (dict, optional): dictionary lookup of classnames -> indexes
-            (default: alphabetic indexing of VOC's 20 classes)
-        keep_difficult (bool, optional): keep difficult instances or not
-            (default: False)
-        height (int): height
-        width (int): width
-    """
-
-    def __init__(self, class_to_ind=None, keep_difficult=True):
-        self.class_to_ind = class_to_ind or dict(
-            zip(VOC_CLASSES, range(len(VOC_CLASSES))))
+    def __init__(self, keep_difficult=True):
+        self.class_to_ind = dict(zip(VOC_CLASSES, range(len(VOC_CLASSES))))
         self.keep_difficult = keep_difficult
 
     def __call__(self, target):
-        """
-        Arguments:
-            target (annotation) : the target annotation to be made usable
-                will be an ET.Element
-        Returns:
-            a list containing lists of bounding boxes  [bbox coords, class name]
-        """
         res = np.empty((0,5))
         for obj in target.iter('object'):
             difficult = int(obj.find('difficult').text) == 1
@@ -70,29 +54,15 @@ class AnnotationTransform(object):
 
 class VOCDetection(data.Dataset):
 
-    """VOC Detection Dataset Object
+    """ VOC Detection Dataset Object """
 
-    input is image, target is annotation
-
-    Arguments:
-        root (string): filepath to VOCdevkit folder.
-        image_set (string): imageset to use (eg. 'train', 'val', 'test')
-        transform (callable, optional): transformation to perform on the
-            input image
-        target_transform (callable, optional): transformation to perform on the
-            target `annotation`
-            (eg: take in caption string, return tensor of word indices)
-        dataset_name (string, optional): which dataset to load
-            (default: 'VOC2007')
-    """
-
-    def __init__(self, root, image_sets, preproc=None, target_transform=None,
-                 dataset_name='VOC0712'):
-        self.root = root
+    def __init__(self, image_sets, size, dataset_name='VOC0712'):
+        self.root = VOCroot
         self.image_set = image_sets
-        self.preproc = preproc
-        self.target_transform = target_transform
+        self.size = size
+        self.target_transform = AnnotationTransform()
         self.name = dataset_name
+        self.num_classes = len(self.pull_classes())
         self._annopath = os.path.join('%s', 'Annotations', '%s.xml')
         self._imgpath = os.path.join('%s', 'JPEGImages', '%s.jpg')
         self.ids = list()
@@ -102,79 +72,25 @@ class VOCDetection(data.Dataset):
             for line in open(os.path.join(rootpath, 'ImageSets', 'Main', name + '.txt')):
                 self.ids.append((rootpath, line.strip()))
 
+    def pull_classes(self):
+        return VOC_CLASSES
+
     def __getitem__(self, index):
         img_id = self.ids[index]
         target = ET.parse(self._annopath % img_id).getroot()
         img = cv2.imread(self._imgpath % img_id, cv2.IMREAD_COLOR)
-        height, width, _ = img.shape
-
-        if self.target_transform is not None:
-            target = self.target_transform(target)
-
-
-        if self.preproc is not None:
-            img, target = self.preproc(img, target)
-            
+        target = self.target_transform(target)
+        img, target = preproc_for_train(img, target, self.size)
         return img, target
 
     def __len__(self):
         return len(self.ids)
 
     def pull_image(self, index):
-        '''Returns the original image object at index in PIL form
-
-        Note: not using self.__getitem__(), as any transformations passed in
-        could mess up this functionality.
-
-        Argument:
-            index (int): index of img to show
-        Return:
-            PIL img
-        '''
         img_id = self.ids[index]
         return cv2.imread(self._imgpath % img_id, cv2.IMREAD_COLOR)
 
-    def pull_anno(self, index):
-        '''Returns the original annotation of image at index
-
-        Note: not using self.__getitem__(), as any transformations passed in
-        could mess up this functionality.
-
-        Argument:
-            index (int): index of img to get annotation of
-        Return:
-            list:  [img_id, [(label, bbox coords),...]]
-                eg: ('001718', [('dog', (96, 13, 438, 332))])
-        '''
-        img_id = self.ids[index]
-        anno = ET.parse(self._annopath % img_id).getroot()
-        if self.target_transform is not None:
-            anno = self.target_transform(anno, 1, 1)
-        return anno
-
-    def pull_tensor(self, index):
-        '''Returns the original image at an index in tensor form
-
-        Note: not using self.__getitem__(), as any transformations passed in
-        could mess up this functionality.
-
-        Argument:
-            index (int): index of img to show
-        Return:
-            tensorized version of img, squeezed
-        '''
-        to_tensor = transforms.ToTensor()
-        return torch.Tensor(self.pull_image(index)).unsqueeze_(0)
-
     def evaluate_detections(self, all_boxes):
-        """
-        all_boxes is a list of length number-of-classes.
-        Each list element is a list of length number-of-images.
-        Each of those list elements is either an empty list []
-        or a numpy array of detection.
-
-        all_boxes[class][image] = [] or np.array of shape #dets x 5
-        """
         output_dir = os.path.join(self.root, 'eval')
         os.makedirs(output_dir, exist_ok=True)
         self._write_voc_results_file(all_boxes)
@@ -185,7 +101,7 @@ class VOCDetection(data.Dataset):
             print('----thresh={:.2f}, AP={:.3f}'.format(thresh, result))
 
         print('mAP results: AP50={:.3f}, AP75={:.3f}, AP={:.3f}'.format(results[0], results[5], sum(results)/10))
-        return results
+        return sum(results)/10
 
     def _get_voc_results_file_template(self):
         filename = 'comp4_det_test' + '_{:s}.txt'
@@ -201,7 +117,6 @@ class VOCDetection(data.Dataset):
             cls_ind = cls_ind 
             if cls == '__background__':
                 continue
-            #print('Writing {} VOC results file'.format(cls))
             filename = self._get_voc_results_file_template().format(cls)
             with open(filename, 'wt') as f:
                 for im_ind, index in enumerate(self.ids):
@@ -262,27 +177,3 @@ class VOCDetection(data.Dataset):
         print('-- Thanks, The Management')
         print('--------------------------------------------------------------')"""
         return np.mean(aps)
-
-def detection_collate(batch):
-    """Custom collate fn for dealing with batches of images that have a different
-    number of associated object annotations (bounding boxes).
-
-    Arguments:
-        batch: (tuple) A tuple of tensor images and lists of annotations
-
-    Return:
-        A tuple containing:
-            1) (tensor) batch of images stacked on their 0 dim
-            2) (list of tensors) annotations for a given image are stacked on 0 dim
-    """
-    targets = []
-    imgs = []
-    for _, sample in enumerate(batch):
-        for _, tup in enumerate(sample):
-            if torch.is_tensor(tup):
-                imgs.append(tup)
-            elif isinstance(tup, type(np.empty(0))):
-                annos = torch.from_numpy(tup).float()
-                targets.append(annos)
-
-    return (torch.stack(imgs, 0), targets)

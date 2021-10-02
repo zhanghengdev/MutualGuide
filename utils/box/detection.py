@@ -1,41 +1,26 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-import torch
-import torch.nn as nn
-import torch.backends.cudnn as cudnn
-from torch.autograd import Function
-from torch.autograd import Variable
+
+import torchvision
 from .box_utils import decode
 
+def Detect(predictions, prior, scale, eval_thresh=0.05, nms_thresh=0.5):
+    """ Detect layer at test time """
 
-class Detect(Function):
-
-    """At test time, Detect is the final layer of SSD.  Decode location preds,
-    apply non-maximum suppression to location predictions based on conf
-    scores and threshold to a top_k number of output predictions for both
-    confidence score and locations.
-    """
-
-    def __init__(self, num_classes):
-        self.num_classes = num_classes
-
-    def forward(self, predictions, prior):
-        """
-        Args:
-            loc_data: (tensor) Loc preds from loc layers
-                Shape: [batch,num_priors*4]
-            conf_data: (tensor) Shape: Conf preds from conf layers
-                Shape: [batch*num_priors,num_classes]
-            prior_data: (tensor) Prior boxes and variances from priorbox layers
-                Shape: [1,num_priors,4]
-        """
-
-        (loc, conf) = predictions
-        loc_data = loc.data
-        conf_data = conf.data
-        prior_data = prior.data
-        assert loc_data.size(0) == 1,  'Batch size = {} during evaluation'.format(loc_data.size(0))
-        decoded_boxes = decode(loc_data.squeeze(0), prior_data).clamp(min=0, max=1)
-        conf_scores = conf_data.squeeze(0).sigmoid()
-        return (decoded_boxes, conf_scores)
+    (loc, conf) = predictions[:2]
+    assert loc.size(0) == 1,  'ERROR: Batch size = {} during evaluation'.format(loc.size(0))
+    
+    decoded_boxes = decode(loc.squeeze(0), prior).clamp(min=0, max=1)
+    decoded_boxes *= scale  # scale each detection back up to the image
+    conf_scores = conf.squeeze(0).sigmoid()
+    
+    keep = conf_scores.max(1)[0] > eval_thresh
+    decoded_boxes=decoded_boxes[keep]
+    conf_scores=conf_scores[keep]
+    
+    keep = torchvision.ops.nms(decoded_boxes, conf_scores.max(1)[0], iou_threshold=nms_thresh)
+    decoded_boxes=decoded_boxes[keep].cpu().numpy()
+    conf_scores=conf_scores[keep].cpu().numpy()
+    
+    return (decoded_boxes, conf_scores)
 
