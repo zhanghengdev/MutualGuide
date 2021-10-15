@@ -62,7 +62,7 @@ class COCODetection(data.Dataset):
 
     def image_path_from_index(self, name, index):
         """ Construct an image path """
-        file_name = (str(index).zfill(12) + '.copy.jpg')
+        file_name = (str(index).zfill(12) + '.jpg')
         image_path = os.path.join(self.root, name, file_name)
         assert os.path.exists(image_path), 'Path does not exist: {}'.format(image_path)
         return image_path
@@ -70,7 +70,7 @@ class COCODetection(data.Dataset):
 
     def _get_ann_file(self, name):
         prefix = 'instances' if name.find('test') == -1 else 'image_info'
-        return os.path.join(self.root, 'annotations', prefix + '_' + name + '.copy.json')
+        return os.path.join(self.root, 'annotations', prefix + '_' + name + '.json')
 
 
     def _load_coco_annotations(self, coco_name, indexes, _COCO):

@@ -59,24 +59,6 @@ def centerness(box_a, box_b):
     return centerness
 
 
-def get_foreground(truths, priors, mask, idx, multi_anchor=True):
-
-    if multi_anchor:
-        overlaps = jaccard(truths, point_form(priors))
-    else:
-        overlaps = torch.sqrt(jaccard(truths, point_form(priors)) * centerness(truths, priors))
-    (best_truth_overlap, _) = overlaps.max(0)
-    best_truth_overlap[best_truth_overlap >= 0.5] = 1.0
-    best_truth_overlap[best_truth_overlap < 0.5] = 0.0
-    mask[idx] = best_truth_overlap  # [num_priors] jaccord for each prior
-
-def get_foreground2(truths, priors, mask, idx):
-
-    overlaps = centerness(truths, priors)   # Shape: [num_obj, num_priors]
-    (best_truth_overlap, _) = overlaps.max(0)
-    best_truth_overlap[best_truth_overlap > 0] = 1.0
-    mask[idx] = best_truth_overlap  # [num_priors] jaccord for each prior
-
 def match(truths, priors, labels, loc_t, conf_t, overlap_t, idx, multi_anchor=True):
     """ Match each prior box with the ground truth box """
 
@@ -96,24 +78,6 @@ def mutual_match(truths, priors, regress, classif, labels, loc_t, conf_t, overla
     """Classify to regress and regress to classify, Mutual Match for label assignement """
 
     num_obj = truths.size()[0]
-
-    """topk = 10 if multi_anchor else 5
-    reg_overlaps = jaccard(truths, decode(regress, priors))
-    classif = classif.sigmoid().t()[labels - 1, :]
-    reg_overlaps = reg_overlaps ** ((sigma - classif) / sigma)
-    reg_overlaps[reg_overlaps != reg_overlaps.max(dim=0, keepdim=True)[0]] = 0.0
-
-    for reg_overlap in reg_overlaps:
-        num_pos = max(1, torch.topk(reg_overlap, topk, largest=True)[0].sum().int())
-        pos_mask = torch.topk(reg_overlap, num_pos, largest=True)[1]
-        reg_overlap[pos_mask] += 3.0
-
-    (best_truth_overlap, best_truth_idx) = reg_overlaps.max(dim=0)
-    overlap_t[idx] = best_truth_overlap  # [num_priors] jaccord for each prior
-    pred_t[idx] = best_truth_overlap  # [num_priors] jaccord for each prior
-    conf_t[idx] = labels[best_truth_idx]  # [num_priors] top class label for each prior
-    loc_t[idx] = truths[best_truth_idx]  # Shape: [num_priors,4]
-    return"""
 
     topk = 15 if multi_anchor else 5
     reg_overlaps = jaccard(truths, decode(regress, priors))
@@ -161,33 +125,3 @@ def decode(loc, priors, variances=[0.1, 0.2]):
     boxes[:, :2] -= boxes[:, 2:] / 2
     boxes[:, 2:] += boxes[:, :2]
     return boxes
-
-def nms(dets, thresh=0.5):
-    """ Python version Non maximun suppression """
-
-    x1 = dets[:, 0]
-    y1 = dets[:, 1]
-    x2 = dets[:, 2]
-    y2 = dets[:, 3]
-    scores = dets[:, 4]
-
-    areas = (x2 - x1 + 1) * (y2 - y1 + 1)
-    order = scores.argsort()[::-1]
-
-    keep = []
-    while order.size > 0:
-        i = order[0]
-        keep.append(i)
-        xx1 = np.maximum(x1[i], x1[order[1:]])
-        yy1 = np.maximum(y1[i], y1[order[1:]])
-        xx2 = np.minimum(x2[i], x2[order[1:]])
-        yy2 = np.minimum(y2[i], y2[order[1:]])
-
-        w = np.maximum(0.0, xx2 - xx1 + 1)
-        h = np.maximum(0.0, yy2 - yy1 + 1)
-        inter = w * h
-        ovr = inter / (areas[i] + areas[order[1:]] - inter)
-        inds = np.where(ovr <= thresh)[0]
-        order = order[inds + 1]
-
-    return keep

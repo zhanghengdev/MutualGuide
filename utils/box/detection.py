@@ -4,7 +4,7 @@
 import torchvision
 from .box_utils import decode
 
-def Detect(predictions, prior, scale, eval_thresh=0.05, nms_thresh=0.5):
+def Detect(predictions, prior, scale, eval_thresh=0.01, nms_thresh=0.5):
     """ Detect layer at test time """
 
     (loc, conf) = predictions[:2]

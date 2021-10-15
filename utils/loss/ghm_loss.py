@@ -8,6 +8,7 @@ import torch.nn.functional as F
 
 class GHMLoss(nn.Module):
     """ GHM Classification Loss """
+    
     def __init__(self, bins=10, momentum=0, loss_weight=1.0):
         super(GHMLoss, self).__init__()
         self.bins = bins

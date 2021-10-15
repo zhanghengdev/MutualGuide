@@ -77,14 +77,18 @@ class VOCDetection(data.Dataset):
 
     def __getitem__(self, index):
         img_id = self.ids[index]
-        target = ET.parse(self._annopath % img_id).getroot()
-        img = cv2.imread(self._imgpath % img_id, cv2.IMREAD_COLOR)
-        target = self.target_transform(target)
+        target = self.pul_anno(index)
+        img = self.pull_image(index)
         img, target = preproc_for_train(img, target, self.size)
         return img, target
 
     def __len__(self):
         return len(self.ids)
+
+    def pull_anno(self, index):
+        img_id = self.ids[index]
+        target = ET.parse(self._annopath % img_id).getroot()
+        return self.target_transform(target)
 
     def pull_image(self, index):
         img_id = self.ids[index]

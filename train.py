@@ -18,7 +18,7 @@ import torch.utils.data as data
 from apex import amp
 from data import detection_collate, preproc_for_test
 from utils import PriorBox, Detect
-from utils import MultiBoxLoss, HintLoss
+from utils import MultiBoxLoss
 from utils import Timer, ModelEMA
 from utils import adjust_learning_rate, tencent_trick
 from utils.box import SeqBoxMatcher
@@ -39,7 +39,7 @@ cudnn.benchmark = True
 
 parser = argparse.ArgumentParser(description='Pytorch Training')
 parser.add_argument('--neck', default='pafpn')
-parser.add_argument('--backbone', default='repvgg-A1')
+parser.add_argument('--backbone', default='resnet18')
 parser.add_argument('--dataset', default='COCO')
 parser.add_argument('--save_folder', default='weights/')
 parser.add_argument('--multi_anchor', action='store_true')
@@ -47,11 +47,10 @@ parser.add_argument('--multi_level', action='store_true')
 parser.add_argument('--mutual_guide', action='store_true')
 parser.add_argument('--pretrained', action='store_true')
 parser.add_argument('--base_anchor_size', default=24.0, type=float)
-parser.add_argument('--size', default=512, type=int)
+parser.add_argument('--size', default=320, type=int)
 parser.add_argument('--batch_size', default=32, type=int)
 parser.add_argument('--lr', default=1e-2, type=float)
 parser.add_argument('--warm_iter', default=500, type=int)
-parser.add_argument('--kd', default='pdf', help='Hint loss')
 args = parser.parse_args()
 print(args)
 
@@ -78,36 +77,19 @@ if __name__ == '__main__':
         max_iter = 100 * epoch_size
     else:
         raise NotImplementedError('Unkown dataset {}!'.format(args.dataset))
-    
-    print('Loading student Network...')
-    from models.student_detector import Detector
+
+    print('Loading Optimizer & Network...')
+    from models.teacher_detector import Detector
     model = Detector(args.size, dataset.num_classes, args.backbone, args.neck,
         multi_anchor=args.multi_anchor, multi_level=args.multi_level, pretrained=args.pretrained).cuda()
-    num_param = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    print('Total param of student model is : {:e}'.format(num_param))
-
-    print('Loading teacher Network...')
-    assert args.backbone in ['resnet18', 'repvgg-A0', 'repvgg-A1']
-    backbone = 'resnet34' if args.backbone=='resnet18' else 'repvgg-A2'
-    neck = 'pafpn'
-    from models.teacher_detector import Detector
-    teacher = Detector(args.size, dataset.num_classes, backbone, neck,
-        multi_anchor=args.multi_anchor, multi_level=args.multi_level, pretrained=args.pretrained).cuda()
-    trained_model = 'weights/public/{}_{}_{}_{}_size{}_anchor{}_MG.pth'.format(
-            args.dataset, 'retina' if args.multi_anchor else 'fcos', neck, backbone, args.size, args.base_anchor_size)
-    print('loading weights from', trained_model)
-    state_dict = torch.load(trained_model)
-    teacher.load_state_dict(state_dict["model"], strict=True)
-    teacher.deploy()
-    num_param = sum(p.numel() for p in teacher.parameters())
-    print('Total param of teacher model is : {:e}'.format(num_param))
-
-    print('Preparing Optimizer & AnchorBoxes...')
     optimizer = optim.SGD(tencent_trick(model), lr=args.lr, momentum=0.9, weight_decay=0.0005)
     model, optimizer = amp.initialize(model, optimizer, opt_level="O1")
     ema_model = ModelEMA(model)
-    criterion_det = MultiBoxLoss(mutual_guide=args.mutual_guide, multi_anchor=args.multi_anchor)
-    criterion_kd = HintLoss(args.kd)
+    num_param = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    print('Total param is : {:e}'.format(num_param))
+
+    print('Preparing Criterion & AnchorBoxes...')
+    criterion = MultiBoxLoss(mutual_guide=args.mutual_guide, multi_anchor=args.multi_anchor)
     priors = PriorBox(args.base_anchor_size, args.size, base_size=args.size, 
         multi_anchor=args.multi_anchor, multi_level=args.multi_level).cuda()
 
@@ -149,12 +131,9 @@ if __name__ == '__main__':
         (images, targets) = next(batch_iterator)
         images = Variable(images.cuda())
         targets = [Variable(anno.cuda()) for anno in targets]
-        with torch.no_grad():
-            out_t = teacher(images)
-        out = model(images)
-        (loss_l, loss_c) = criterion_det(out[:2], priors, targets)
-        loss_kd = criterion_kd(out_t[2].detach(), out[2], out_t[1].detach(), out[1], priors, targets)
-        loss = loss_l + loss_c + loss_kd
+        out = model.forward_test(images)
+        (loss_l, loss_c) = criterion(out[:2], priors, targets)
+        loss = loss_l + loss_c
         optimizer.zero_grad()
         with amp.scale_loss(loss, optimizer) as scaled_loss:
             scaled_loss.backward()
@@ -165,22 +144,21 @@ if __name__ == '__main__':
 
         # logging
         if iteration % 100 == 0:
-            print('iter {}/{}, lr {:.6f}, loss_l {:.2f}, loss_c {:.2f}, loss_kd {:.2f}, loss {:.2f}, time {:.2f}s, eta {:.2f}h'.format(
+            print('iter {}/{}, lr {:.6f}, loss_l {:.2f}, loss_c {:.2f}, loss {:.2f}, time {:.2f}s, eta {:.2f}h'.format(
                 iteration,
                 max_iter,
                 optimizer.param_groups[0]['lr'],
                 loss_l.item(),
                 loss_c.item(),
-                loss_kd.item(),
                 loss.item(),
                 load_time,
                 load_time * (max_iter - iteration) / 3600,
                 ))
             timer.clear()
-
+    
     # model saving
     model = ema_model.ema
-    save_path = os.path.join(args.save_folder, '{}_{}_{}_{}_size{}_anchor{}{}_kd{}.pth'.format(
+    save_path = os.path.join(args.save_folder, '{}_{}_{}_{}_size{}_anchor{}{}.pth'.format(
         args.dataset,
         ('retina' if args.multi_anchor else 'fcos'),
         args.neck,
@@ -188,7 +166,6 @@ if __name__ == '__main__':
         args.size,
         args.base_anchor_size,
         ('_MG' if args.mutual_guide else ''),
-        args.kd,
         ))
     tosave = {
                 "model": model.state_dict(),
@@ -196,4 +173,4 @@ if __name__ == '__main__':
             }
     print('Saving to {}'.format(save_path))
     torch.save(tosave, save_path)
-    
+
