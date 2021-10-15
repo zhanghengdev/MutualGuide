@@ -1,8 +1,10 @@
 <img align="center" src="https://github.com/zhangheng19931123/MutualGuide/blob/master/doc/mg.svg">
 
 # Introduction
-MutualGuidance is a compact object detector specially designed for embedded devices. Comparing to existing detectors, this repo contains two key features. 
+MutualGuide is a compact object detector specially designed for embedded devices. Comparing to existing detectors, this repo contains two key features. 
+
 Firstly, the Mutual Guidance mecanism assigns labels to the classification task based on the prediction on the localization task, and vice versa, alleviating the misalignment problem between both tasks; Secondly, the teacher-student prediction disagreements guides the knowledge transfer in a feature-based detection distillation framework, thereby reducing the performance gap between both models.
+
 For more details, please refer to our [ACCV paper](https://openaccess.thecvf.com/content/ACCV2020/html/Zhang_Localize_to_Classify_and_Classify_to_Localize_Mutual_Guidance_in_ACCV_2020_paper.html) and [BMVC paper](https://www.bmvc2021.com/).
 
 # Planning
@@ -25,7 +27,7 @@ For more details, please refer to our [ACCV paper](https://openaccess.thecvf.com
 
 **Remarks:**
 
-- The inference runtime is measured by Pytorch framework on a Tesla V100 GPU, note that the post-processing time (NMS) time is not included.
+- The inference runtime is measured by Pytorch framework (**without** TensorRT acceleration) on a Tesla V100 GPU, and the post-processing time (NMS) time is not included.
 
 # Datasets
 
@@ -37,11 +39,13 @@ $ mkdir datasets
 $ ln -s /path_to_your_voc_dataset datasets/VOCdevkit
 $ ln -s /path_to_your_coco_dataset datasets/coco2017
 ```
-For training on custom dataset, first modify the dataset path `XMLroot` and categories `XML_CLASSES` in `data/xml_dataset.py`. Then apply `--dataset XML`.
+**Remarks:**
+
+- For training on custom dataset, first modify the dataset path `XMLroot` and categories `XML_CLASSES` in `data/xml_dataset.py`. Then apply `--dataset XML`.
 
 # Training
 
-For training with Mutual Guide:
+For training with [Mutual Guide](https://openaccess.thecvf.com/content/ACCV2020/html/Zhang_Localize_to_Classify_and_Classify_to_Localize_Mutual_Guidance_in_ACCV_2020_paper.html):
 ```Shell
 $ python3 train.py --neck ssd --backbone vgg16    --dataset VOC --size 320 --multi_level --multi_anchor --mutual_guide --pretrained
                           fpn            resnet34           COCO       512
@@ -49,7 +53,7 @@ $ python3 train.py --neck ssd --backbone vgg16    --dataset VOC --size 320 --mul
                                          shufflenet-1.0
 ```
 
-For knowledge distillation using PDF-Fistil:
+For knowledge distillation using [PDF-Fistil](https://www.bmvc2021.com/):
 ```Shell
 $ python3 distil.py --neck ssd --backbone vgg11    --dataset VOC --size 320 --multi_level --multi_anchor --mutual_guide --pretrained --kd pdf
                            fpn            resnet18           COCO       512
@@ -75,10 +79,11 @@ $ python3 test.py --neck ssd --backbone vgg11    --dataset VOC --size 320 --trai
 
 **Remarks:**
 
-- It will directly print the mAP, AP50 and AP50 results on VOC2007 Test or COCO2017 Val.
-- Add parameter `--draw` to draw detection results. They will be saved in `draw/VOC/` or `draw/COCO/` or `draw/XML/`.
+- It will directly print the mAP, AP50 and AP50 results on VOC2007 Test or COCO2017 Val;
+- Add parameter `--draw` to draw detection results. They will be saved in `draw/VOC/` or `draw/COCO/` or `draw/XML/`;
+- Add '--trt' to activate TensorRT acceleration.
 
-## Citing us
+# Citing us
 Please cite our papers in your publications if they help your research:
 
     @InProceedings{Zhang_2020_ACCV,

@@ -51,6 +51,7 @@ parser.add_argument('--eval_thresh', default=0.01, type=float)
 parser.add_argument('--nms_thresh', default=0.5, type=float)
 parser.add_argument('--trained_model', help='Location to trained model')
 parser.add_argument('--draw', action='store_true', help='Draw detection results')
+parser.add_argument('--trt', action='store_true', help='Using TensorRT')
 args = parser.parse_args()
 print(args)
 
@@ -74,11 +75,7 @@ if __name__ == '__main__':
     from models.teacher_detector import Detector
     model = Detector(args.size, testset.num_classes, args.backbone, args.neck,
         multi_anchor=args.multi_anchor, multi_level=args.multi_level, pretrained=args.pretrained).cuda()
-
-    print('Preparing AnchorBoxes...')
-    priors = PriorBox(args.base_anchor_size, args.size, base_size=args.size, 
-        multi_anchor=args.multi_anchor, multi_level=args.multi_level).cuda()
-
+    
     print('Loading weights from', args.trained_model)
     state_dict = torch.load(args.trained_model)
     keys = list(state_dict["model"].keys())
@@ -87,7 +84,18 @@ if __name__ == '__main__':
             state_dict["model"].pop(k)
     model.load_state_dict(state_dict["model"], strict=True)
     model.deploy()
-    
+
+    if args.trt:
+        print('Converting to TensorRT model...')
+        from torch2trt import torch2trt
+        model.half()
+        x = torch.randn((1, 3, args.size, args.size)).cuda().half()
+        model = torch2trt(model, [x], fp16_mode=True)
+
+    print('Preparing AnchorBoxes...')
+    priors = PriorBox(args.base_anchor_size, args.size, base_size=args.size, 
+        multi_anchor=args.multi_anchor, multi_level=args.multi_level).cuda()
+
     print('Start Evaluation...')
     num_images = len(testset)
     all_boxes = [
