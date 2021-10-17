@@ -40,6 +40,7 @@ For more details, please refer to our [ACCV paper](https://openaccess.thecvf.com
 
 **Remarks:**
 
+- The precision is measured on the COCO2017 Val dataset. 
 - The inference runtime is measured by Pytorch framework (**without** TensorRT acceleration) on a Tesla V100 GPU, and the post-processing time (e.g., NMS) is not included.
 
 # Datasets
