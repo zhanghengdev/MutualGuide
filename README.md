@@ -40,7 +40,7 @@ For more details, please refer to our [ACCV paper](https://openaccess.thecvf.com
 
 **Remarks:**
 
-- The inference runtime is measured by Pytorch framework (**without** TensorRT acceleration) on a Tesla V100 GPU, and the post-processing time (NMS) time is not included.
+- The inference runtime is measured by Pytorch framework (**without** TensorRT acceleration) on a Tesla V100 GPU, and the post-processing time (e.g., NMS) is not included.
 
 # Datasets
 
@@ -66,7 +66,7 @@ $ python3 train.py --neck ssd --backbone vgg16    --dataset VOC --size 320 --mul
                                          shufflenet-1.0
 ```
 
-For knowledge distillation using [PDF-Fistil](https://www.bmvc2021.com/):
+For knowledge distillation using [PDF-Distil](https://www.bmvc2021.com/):
 ```Shell
 $ python3 distil.py --neck ssd --backbone vgg11    --dataset VOC --size 320 --multi_level --multi_anchor --mutual_guide --pretrained --kd pdf
                            fpn            resnet18           COCO       512
@@ -94,9 +94,10 @@ $ python3 test.py --neck ssd --backbone vgg11    --dataset VOC --size 320 --trai
 
 - It will directly print the mAP, AP50 and AP50 results on VOC2007 Test or COCO2017 Val;
 - Add parameter `--draw` to draw detection results. They will be saved in `draw/VOC/` or `draw/COCO/` or `draw/XML/`;
-- Add '--trt' to activate TensorRT acceleration.
+- Add `--trt` to activate TensorRT acceleration.
 
 # Citing us
+
 Please cite our papers in your publications if they help your research:
 
     @InProceedings{Zhang_2020_ACCV,
@@ -114,3 +115,7 @@ Please cite our papers in your publications if they help your research:
         month     = {November},
         year      = {2021}
     }
+
+# Acknowledgement
+
+This project contains pieces of code from the following projects: [mmdetection](https://github.com/open-mmlab/mmdetection), [ssd.pytorch](https://github.com/amdegroot/ssd.pytorch), [rfbnet](https://github.com/ruinmessi/RFBNet) and [yolox](https://github.com/Megvii-BaseDetection/YOLOX).
