@@ -12,12 +12,11 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.backends.cudnn as cudnn
-import torchvision.transforms as transforms
 from torch.autograd import Variable
 import torch.utils.data as data
 from apex import amp
-from data import detection_collate, preproc_for_test
-from utils import PriorBox, Detect
+from data import detection_collate
+from utils import PriorBox
 from utils import MultiBoxLoss
 from utils import Timer, ModelEMA
 from utils import adjust_learning_rate, tencent_trick

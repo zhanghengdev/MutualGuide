@@ -10,16 +10,9 @@ import cv2
 import random
 import torch
 import torch.nn as nn
-import torch.optim as optim
 import torch.backends.cudnn as cudnn
-import torchvision.transforms as transforms
-from torch.autograd import Variable
-import torch.utils.data as data
-from data import detection_collate, preproc_for_test
-from utils import PriorBox, Detect
-from utils import MultiBoxLoss
-from utils import Timer, ModelEMA
-from utils import adjust_learning_rate, tencent_trick
+from data import preproc_for_test
+from utils import Timer, PriorBox, Detect
 from utils.box import SeqBoxMatcher
 cudnn.benchmark = True
 import time
@@ -108,7 +101,9 @@ if __name__ == '__main__':
         os.makedirs("draw/", exist_ok=True)
         os.makedirs("draw/{}/".format(args.dataset), exist_ok=True)
     
+    _t = {'im_detect': Timer(), 'im_nms': Timer()}
     for i in range(num_images):
+        
         # prepare image to detect
         img = testset.pull_image(i)
         scale = torch.Tensor(
@@ -118,23 +113,16 @@ if __name__ == '__main__':
                 preproc_for_test(img, args.size)
             ).unsqueeze(0).cuda()
 
-        # measure model inference time 
-        start = time.time()
+        # model inference
+        _t['im_detect'].tic()
         with torch.no_grad():
             out = model.forward_test(x)
-        runtime = (time.time()-start)*1000
-
-        # non maximum suppression
-        start = time.time()
-        (boxes, scores) = Detect(out, priors, scale, 
-            eval_thresh=args.eval_thresh, nms_thresh=args.nms_thresh)
-        nmstime = (time.time()-start)*1000
-
-        # logging
-        print('[{}/{}] runtime={:.2f}ms nms={:.2f}ms        '.format(
-            i, num_images, runtime, nmstime), end="\r")
+        detect_time = _t['im_detect'].toc()
 
         # post processing
+        _t['im_nms'].tic()
+        (boxes, scores) = Detect(out, priors, scale, 
+            eval_thresh=args.eval_thresh, nms_thresh=args.nms_thresh)
         if args.seq_matcher:
             boxes, scores = box_matcher.update(boxes, scores)
         for j in range(1, testset.num_classes):
@@ -145,6 +133,7 @@ if __name__ == '__main__':
                 all_boxes[j][i] = np.hstack(
                         (boxes[inds], scores[inds, j-1:j])
                     ).astype(np.float32)
+        nms_time = _t['im_nms'].toc()
 
         # draw bounding boxes on images
         if args.draw:
@@ -170,5 +159,15 @@ if __name__ == '__main__':
             filename = 'draw/{}/{}.jpg'.format(args.dataset, i)
             cv2.imwrite(filename, img)
 
+        # logging
+        if i == 10:
+            _t['im_detect'].clear()
+            _t['im_nms'].clear()
+        if i % math.floor(num_images / 10) == 0 and i > 0:
+            print('[{}/{}]Time results: detect={:.2f}ms, nms={:.2f}ms,'.format(
+                    i, num_images, detect_time * 1000, nms_time * 1000)
+                )
+
+    # evaluation
     testset.evaluate_detections(all_boxes)
 
