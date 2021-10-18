@@ -77,16 +77,16 @@ $ python3 distil.py --neck ssd --backbone vgg11    --dataset VOC --size 320 --mu
 
 **Remarks:**
 
-- For training without MutualGuide, just remove the '--mutual_guide';
-- For training on custom dataset, convert your annotations into XML format and use the parameter '--dataset XML'. An example is given in `datasets/XML/`;
-- For knowledge distillation with traditional MSE loss, just use parameter '--kd mse';
+- For training without MutualGuide, just remove the `--mutual_guide`;
+- For training on custom dataset, convert your annotations into XML format and use the parameter `--dataset XML`. An example is given in `datasets/XML/`;
+- For knowledge distillation with traditional MSE loss, just use parameter `--kd mse`;
 - The default folder to save trained model is `weights/`.
 
 # Evaluation
 
 Every time you want to evaluate a trained network:
 ```Shell
-$ python3 test.py --neck ssd --backbone vgg11    --dataset VOC --size 320 --trained_model path_to_saved_weights --draw
+$ python3 test.py --neck ssd --backbone vgg11    --dataset VOC --size 320 --trained_model path_to_saved_weights --multi_level --multi_anchor --pretrained --draw
                          fpn            resnet18           COCO       512
                          pafpn          repvgg-A1          XML
                                         shufflenet-0.5
