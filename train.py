@@ -142,12 +142,13 @@ if __name__ == '__main__':
             out = model.forward_test(inputs)
             (loss_l_a, loss_c_a) = criterion(out[:2], priors, targets_a)
             (loss_l_b, loss_c_b) = criterion(out[:2], priors, targets_b)
-            loss = lam * (loss_l_a + loss_c_a) + (1 - lam) * (loss_l_b + loss_c_b)
+            loss_l = lam * loss_l_a + (1 - lam) * loss_l_b
+            loss_c = lam * loss_c_a + (1 - lam) * loss_c_b
         else:
             # non mixup
             out = model.forward_test(images)
             (loss_l, loss_c) = criterion(out[:2], priors, targets)
-            loss = loss_l + loss_c
+        loss = loss_l + loss_c
 
         optimizer.zero_grad()
         with amp.scale_loss(loss, optimizer) as scaled_loss:

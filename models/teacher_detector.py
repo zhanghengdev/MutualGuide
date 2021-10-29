@@ -6,20 +6,20 @@ import torch
 import torch.nn as nn
 import torch.nn.init as init
 import torch.nn.functional as F
-from models.base_blocks import BasicConv
+from models.base_blocks import BasicConv, DepthwiseConv
 
-def multibox(fpn_level, num_anchors, num_classes, fea_channel):
+def multibox(fpn_level, num_anchors, num_classes, fea_channel, conv_block):
     loc_layers, conf_layers = list(), list()
     loc_channel = num_anchors * 4
     cls_channel = num_anchors * num_classes
     for _ in range(fpn_level):
         loc_layer = nn.Sequential(
-            BasicConv(fea_channel, fea_channel, 3, padding=1),
+            conv_block(fea_channel, fea_channel, 3, padding=1),
             nn.Conv2d(fea_channel, loc_channel, kernel_size=3, padding=1)
             )
         loc_layers.append(loc_layer)
         conf_layer = nn.Sequential(
-            BasicConv(fea_channel, fea_channel, 3, padding=1),
+            conv_block(fea_channel, fea_channel, 3, padding=1),
             nn.Conv2d(fea_channel, cls_channel, kernel_size=3, padding=1)
             )
         conf_layers.append(conf_layer)
@@ -45,82 +45,98 @@ class Detector(nn.Module):
             self.backbone = ResNetBackbone(depth=18, pretrained=pretrained)
             channels = (256, 512)
             self.fea_channel = 256
+            self.conv_block = BasicConv
         elif backbone == 'resnet34':
             from models.backbone.resnet_backbone import ResNetBackbone
             self.backbone = ResNetBackbone(depth=34, pretrained=pretrained)
             channels = (256, 512)
             self.fea_channel = 256
+            self.conv_block = BasicConv
         elif backbone == 'resnet50':
             from models.backbone.resnet_backbone import ResNetBackbone
             self.backbone = ResNetBackbone(depth=50, pretrained=pretrained)
             channels = (256*4, 512*4)
             self.fea_channel = 256
+            self.conv_block = BasicConv
         elif backbone == 'vgg11':
             from models.backbone.vgg_backbone import VGGBackbone
             self.backbone = VGGBackbone(depth=11, pretrained=pretrained)
             channels = (512, 512)
             self.fea_channel = 256
+            self.conv_block = BasicConv
         elif backbone == 'vgg16':
             from models.backbone.vgg_backbone import VGGBackbone
             self.backbone = VGGBackbone(depth=16, pretrained=pretrained)
             channels = (512, 512)
             self.fea_channel = 256
+            self.conv_block = BasicConv
         elif backbone == 'repvgg-A0':
             from models.backbone.repvgg_backbone import REPVGGBackbone
             self.backbone = REPVGGBackbone(version='A0', pretrained=pretrained)
             channels = (192, 1280)
             self.fea_channel = 256
+            self.conv_block = BasicConv
         elif backbone == 'repvgg-A1':
             from models.backbone.repvgg_backbone import REPVGGBackbone
             self.backbone = REPVGGBackbone(version='A1', pretrained=pretrained)
             channels = (256, 1280)
             self.fea_channel = 256
+            self.conv_block = BasicConv
         elif backbone == 'repvgg-A2':
             from models.backbone.repvgg_backbone import REPVGGBackbone
             self.backbone = REPVGGBackbone(version='A2', pretrained=pretrained)
             channels = (384, 1408)
             self.fea_channel = 256
+            self.conv_block = BasicConv
         elif backbone == 'repvgg-B1':
             from models.backbone.repvgg_backbone import REPVGGBackbone
             self.backbone = REPVGGBackbone(version='B1', pretrained=pretrained)
             channels = (512, 2048)
             self.fea_channel = 256
+            self.conv_block = BasicConv
         elif backbone == 'repvgg-B2':
             from models.backbone.repvgg_backbone import REPVGGBackbone
             self.backbone = REPVGGBackbone(version='B2', pretrained=pretrained)
             channels = (640, 2560)
             self.fea_channel = 256
+            self.conv_block = BasicConv
         elif backbone == 'shufflenet-0.5':
             from models.backbone.shufflenet_backbone import ShuffleNetBackbone
             self.backbone = ShuffleNetBackbone(width=0.5, pretrained=pretrained)
             channels = (96, 192)
             self.fea_channel = 128
+            self.conv_block = DepthwiseConv
         elif backbone == 'shufflenet-1.0':
             from models.backbone.shufflenet_backbone import ShuffleNetBackbone
             self.backbone = ShuffleNetBackbone(width=1.0, pretrained=pretrained)
             channels = (232, 464)
             self.fea_channel = 128
+            self.conv_block = DepthwiseConv
         else:
             raise ValueError('Error: Sorry backbone {} is not supported!'.format(backbone))
 
         # Neck network
         if neck == 'ssd':
+            assert multi_level
             from models.neck.ssd_neck import SSDNeck
-            self.neck = SSDNeck(self.fpn_level, channels, self.fea_channel)
+            self.neck = SSDNeck(self.fpn_level, channels, self.fea_channel, self.conv_block)
         elif neck == 'fpn':
+            assert multi_level
             from models.neck.fpn_neck import FPNNeck
-            self.neck = FPNNeck(self.fpn_level, channels, self.fea_channel)
+            self.neck = FPNNeck(self.fpn_level, channels, self.fea_channel, self.conv_block)
         elif neck == 'pafpn':
+            assert multi_level
             from models.neck.pafpn_neck import PAFPNNeck
-            self.neck = PAFPNNeck(self.fpn_level, channels, self.fea_channel)
+            self.neck = PAFPNNeck(self.fpn_level, channels, self.fea_channel, self.conv_block)
         elif neck == 'yolof':
+            assert not multi_level
             from models.neck.yolof_neck import YOLOFNeck
-            self.neck = YOLOFNeck(channels, self.fea_channel)
+            self.neck = YOLOFNeck(channels, self.fea_channel, self.conv_block)
         else:
             raise ValueError('Error: Sorry neck {} is not supported!'.format(neck))
 
         # Detection Head
-        (self.loc, self.conf) = multibox(self.fpn_level, self.num_anchors, self.num_classes, self.fea_channel)
+        (self.loc, self.conf) = multibox(self.fpn_level, self.num_anchors, self.num_classes, self.fea_channel, self.conv_block)
         bias_value = 0
         for modules in self.loc:
             torch.nn.init.normal_(modules[-1].weight, std=0.01)

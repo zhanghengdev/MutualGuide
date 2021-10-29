@@ -89,6 +89,12 @@ if __name__ == '__main__':
     priors = PriorBox(args.base_anchor_size, args.size, base_size=args.size, 
         multi_anchor=args.multi_anchor, multi_level=args.multi_level).cuda()
 
+    print('Evaluating model complexity...')
+    from ptflops import get_model_complexity_info
+    macs, params = get_model_complexity_info(model, (3, args.size, args.size), as_strings=True, print_per_layer_stat=False, verbose=True)
+    print('{:<30}  {:<8}'.format('Computational complexity: ', macs))
+    print('{:<30}  {:<8}'.format('Number of parameters: ', params))
+
     print('Start Evaluation...')
     num_images = len(testset)
     all_boxes = [

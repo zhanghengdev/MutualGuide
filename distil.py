@@ -86,13 +86,19 @@ if __name__ == '__main__':
     print('Total param of student model is : {:e}'.format(num_param))
 
     print('Loading teacher Network...')
-    assert args.backbone in ['resnet18', 'repvgg-A0', 'repvgg-A1']
-    backbone = 'resnet34' if args.backbone=='resnet18' else 'repvgg-A2'
+    if args.backbone=='repvgg-A1':
+        backbone = 'repvgg-A2'
+    elif args.backbone=='resnet18':
+        backbone = 'resnet34'
+    elif args.backbone=='shufflenet-0.5':
+        backbone = 'shufflenet-1.0'
+    else:
+        raise NotImplementedError
     neck = 'pafpn'
     from models.teacher_detector import Detector
     teacher = Detector(args.size, dataset.num_classes, backbone, neck,
         multi_anchor=args.multi_anchor, multi_level=args.multi_level, pretrained=args.pretrained).cuda()
-    trained_model = 'weights/public/{}_{}_{}_{}_size{}_anchor{}_MG.pth'.format(
+    trained_model = 'weights/{}_{}_{}_{}_size{}_anchor{}_MG.pth'.format(
             args.dataset, 'retina' if args.multi_anchor else 'fcos', neck, backbone, args.size, args.base_anchor_size)
     print('loading weights from', trained_model)
     state_dict = torch.load(trained_model)
