@@ -19,3 +19,5 @@ run*
 *backup*
 *1.py
 *2.py
+datasets/VOCdevkit
+datasets/coco2017
