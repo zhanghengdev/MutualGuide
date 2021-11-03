@@ -24,25 +24,24 @@ For more details, please refer to our [ACCV paper](https://openaccess.thecvf.com
 
 | **Backbone** | **Resolution** | **AP<sup>val**<br>0.5:0.95 | **AP<sup>val**<br>0.5 | **AP<sup>val**<br>0.75 | **AP<sup>val**<br>small | **AP<sup>val**<br>medium | **AP<sup>val**<br>large | **Speed V100**<br>(ms) | **Weights** |
 |:------------:|:--------------:|:--------------------------:|:---------------------:|:----------------------:|:-----------------------:|:------------------------:|:-----------------------:|:----------------------:|:-----------:|
-| ShuffleNet-1.0 | 320x320      | 29.3 | 45.4 | 30.5 | 12.0 | 33.2 | 43.9 | 7.0 | [Google](https://drive.google.com/file/d/1t5JuFlb6GQL2nFJkxeh4gD_XUC0uwNay/view?usp=sharing) |
-| ShuffleNet-1.0 | 512x512      | 33.5 | 51.0 | 35.8 | 17.7 | 38.0 | 44.3 | 9.0 | [Google](https://drive.google.com/file/d/1USgfIl82mR_6-AH2bCe3k7xvx_ioxMk7/view?usp=sharing) |
-| ResNet-34      | 512x512      | 44.1 | 62.3 | 47.6 | 26.5 | 50.2 | 58.3 | 6.9 | [Google](https://drive.google.com/file/d/1DRQ0FHo2Wfn8u4xoN62FLA_Mrjskwj5b/view?usp=sharing) |
-| ResNet-18      | 512x512      | 42.0 | 60.0 | 45.3 | 25.4 | 47.1 | 56.0 | 4.4 | [Google](https://drive.google.com/file/d/1wZ_tO55nYrzb3X12CrhHby-lw6mAv1M_/view?usp=sharing) |
-| RepVGG-A2      | 512x512      | 44.2 | 62.5 | 47.5 | 27.2 | 50.3 | 57.2 | 5.3 | [Google](https://drive.google.com/file/d/1fHbSDRvoDB4h-Dh2cm9zoiDYnluGw6Kh/view?usp=sharing) |
-| RepVGG-A1      | 512x512      | 43.1 | 61.3 | 46.6 | 26.6 | 49.3 | 55.9 | 4.4 | [Google](https://drive.google.com/file/d/1iLppaAs7sLr9TXkD3oqmNlG1MVufYRMS/view?usp=sharing) |
+| ShuffleNet-1.0 | 320x320      | 29.3 | 45.4 | 30.5 | 12.0 | 33.2 | 43.9 | 8 | [Google](https://drive.google.com/file/d/1t5JuFlb6GQL2nFJkxeh4gD_XUC0uwNay/view?usp=sharing) |
+| ResNet-18      | 512x512      | 42.0 | 60.0 | 45.3 | 25.4 | 47.1 | 56.0 | 12 | [Google](https://drive.google.com/file/d/1wZ_tO55nYrzb3X12CrhHby-lw6mAv1M_/view?usp=sharing) |
+| ResNet-34      | 512x512      | 44.1 | 62.3 | 47.6 | 26.5 | 50.2 | 58.3 | 16 | [Google](https://drive.google.com/file/d/1DRQ0FHo2Wfn8u4xoN62FLA_Mrjskwj5b/view?usp=sharing) |
+| RepVGG-A1      | 512x512      | 43.1 | 61.3 | 46.6 | 26.6 | 49.3 | 55.9 | 12 | [Google](https://drive.google.com/file/d/1iLppaAs7sLr9TXkD3oqmNlG1MVufYRMS/view?usp=sharing) |
+| RepVGG-A2      | 512x512      | 44.2 | 62.5 | 47.5 | 27.2 | 50.3 | 57.2 | 18 | [Google](https://drive.google.com/file/d/1fHbSDRvoDB4h-Dh2cm9zoiDYnluGw6Kh/view?usp=sharing) |
+
 
 
 - With knowledge distillation:
 
 | **Backbone** | **Resolution** | **AP<sup>val**<br>0.5:0.95 | **AP<sup>val**<br>0.5 | **AP<sup>val**<br>0.75 | **AP<sup>val**<br>small | **AP<sup>val**<br>medium | **AP<sup>val**<br>large | **Speed V100**<br>(ms) | **Weights** |
 |:------------:|:--------------:|:--------------------------:|:---------------------:|:----------------------:|:-----------------------:|:------------------------:|:-----------------------:|:----------------------:|:-----------:|
-| ShuffleNet-0.5 | 320x320      |  |  |  |  |  |  |  | running |
-| ShuffleNet-0.5 | 512x512      |  |  |  |  |  |  |  | running |
-| ResNet-18      | 512x512      | 42.9 | 60.7 | 46.2 | 25.4 | 48.8 | 57.2 | 4.4 | [Google](https://drive.google.com/file/d/1bilD6E3tdjJI3ZD4vZ6nUU_eSsieAfm5/view?usp=sharing) |
-| RepVGG-A1      | 512x512      | 44.0 | 62.1 | 47.3 | 27.6 | 49.9 | 57.9 | 4.4 | [Google](https://drive.google.com/file/d/1hsb_rxArYYCHK7_RJ37k0N_1uZRu2WmG/view?usp=sharing) |
+| ResNet-18      | 512x512      | 42.9 | 60.7 | 46.2 | 25.4 | 48.8 | 57.2 | 12 | [Google](https://drive.google.com/file/d/1bilD6E3tdjJI3ZD4vZ6nUU_eSsieAfm5/view?usp=sharing) |
+| RepVGG-A1      | 512x512      | 44.0 | 62.1 | 47.3 | 27.6 | 49.9 | 57.9 | 12 | [Google](https://drive.google.com/file/d/1hsb_rxArYYCHK7_RJ37k0N_1uZRu2WmG/view?usp=sharing) |
 
 **Remarks:**
 
+- **Sorry we forgot to synchronize the GPU time during the last run, so the runtime measurements were incorrect. The updated results should be correct.**
 - The precision is measured on the COCO2017 Val dataset. 
 - The inference runtime is measured by Pytorch framework (**without** TensorRT acceleration) on a Tesla V100 GPU, and the post-processing time (e.g., NMS) is **not** included (i.e., we measure the model inference time).
 - To dowload from Baidu cloud, go to this [link](https://pan.baidu.com/s/1G9KbNmbwteiE4a2yb-JiXg) (password: `dvz7`).

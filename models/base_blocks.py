@@ -89,6 +89,3 @@ class DepthwiseConv(nn.Module):
             x = self.relu(x)
         return x
 
-    def switch_to_deploy(self):
-        # TODO
-        return

@@ -20,7 +20,6 @@ from utils import PriorBox
 from utils import MultiBoxLoss
 from utils import Timer, ModelEMA
 from utils import adjust_learning_rate, tencent_trick
-from utils.box import SeqBoxMatcher
 cudnn.benchmark = True
 
 ### For Reproducibility ###

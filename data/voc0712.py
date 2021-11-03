@@ -77,7 +77,7 @@ class VOCDetection(data.Dataset):
 
     def __getitem__(self, index):
         img_id = self.ids[index]
-        target = self.pul_anno(index)
+        target = self.pull_anno(index)
         img = self.pull_image(index)
         img, target = preproc_for_train(img, target, self.size)
         return img, target

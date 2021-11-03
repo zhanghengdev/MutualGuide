@@ -120,9 +120,11 @@ if __name__ == '__main__':
             ).unsqueeze(0).cuda()
 
         # model inference
+        torch.cuda.current_stream().synchronize()
         _t['im_detect'].tic()
         with torch.no_grad():
             out = model.forward_test(x)
+        torch.cuda.current_stream().synchronize()
         detect_time = _t['im_detect'].toc()
 
         # post processing
