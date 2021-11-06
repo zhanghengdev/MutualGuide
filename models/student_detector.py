@@ -31,7 +31,7 @@ def multibox(fpn_level, num_anchors, num_classes, fea_channel, conv_block):
 
 class Detector(nn.Module):
 
-    def __init__(self, base_size, num_classes, backbone, neck, multi_anchor=True, multi_level=True, pretrained=True):
+    def __init__(self, base_size, num_classes, backbone, neck, multi_anchor=True, multi_level=True):
         super(Detector, self).__init__()
 
         # Params
@@ -45,31 +45,31 @@ class Detector(nn.Module):
         # Backbone network
         if backbone == 'resnet18':
             from models.backbone.resnet_backbone import ResNetBackbone
-            self.backbone = ResNetBackbone(depth=18, pretrained=pretrained)
+            self.backbone = ResNetBackbone(depth=18)
             channels = (256, 512)
             self.fea_channel = 256
             self.conv_block = BasicConv
         elif backbone == 'vgg11':
             from models.backbone.vgg_backbone import VGGBackbone
-            self.backbone = VGGBackbone(depth=11, pretrained=pretrained)
+            self.backbone = VGGBackbone(depth=11)
             channels = (512, 512)
             self.fea_channel = 256
             self.conv_block = BasicConv
         elif backbone == 'repvgg-A1':
             from models.backbone.repvgg_backbone import REPVGGBackbone
-            self.backbone = REPVGGBackbone(version='A1', pretrained=pretrained)
+            self.backbone = REPVGGBackbone(version='A1')
             channels = (256, 1280)
             self.fea_channel = 256
             self.conv_block = BasicConv
         elif backbone == 'repvgg-B1':
             from models.backbone.repvgg_backbone import REPVGGBackbone
-            self.backbone = REPVGGBackbone(version='B1', pretrained=pretrained)
+            self.backbone = REPVGGBackbone(version='B1')
             channels = (512, 2048)
             self.fea_channel = 256
             self.conv_block = BasicConv
         elif backbone == 'shufflenet-0.5':
             from models.backbone.shufflenet_backbone import ShuffleNetBackbone
-            self.backbone = ShuffleNetBackbone(width=0.5, pretrained=pretrained)
+            self.backbone = ShuffleNetBackbone(width=0.5)
             channels = (96, 192)
             self.fea_channel = 128
             self.conv_block = DepthwiseConv

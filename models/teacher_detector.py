@@ -15,12 +15,12 @@ def multibox(fpn_level, num_anchors, num_classes, fea_channel, conv_block):
     for _ in range(fpn_level):
         loc_layer = nn.Sequential(
             conv_block(fea_channel, fea_channel, 3, padding=1),
-            nn.Conv2d(fea_channel, loc_channel, kernel_size=3, padding=1)
+            nn.Conv2d(fea_channel, loc_channel, 3, padding=1),
             )
         loc_layers.append(loc_layer)
         conf_layer = nn.Sequential(
             conv_block(fea_channel, fea_channel, 3, padding=1),
-            nn.Conv2d(fea_channel, cls_channel, kernel_size=3, padding=1)
+            nn.Conv2d(fea_channel, cls_channel, 3, padding=1),
             )
         conf_layers.append(conf_layer)
     return (nn.ModuleList(loc_layers), nn.ModuleList(conf_layers))
@@ -28,7 +28,7 @@ def multibox(fpn_level, num_anchors, num_classes, fea_channel, conv_block):
 
 class Detector(nn.Module):
 
-    def __init__(self, base_size, num_classes, backbone, neck, multi_anchor=True, multi_level=True, pretrained=True):
+    def __init__(self, base_size, num_classes, backbone, neck, multi_anchor=True, multi_level=True):
         super(Detector, self).__init__()
 
         # Params
@@ -42,73 +42,73 @@ class Detector(nn.Module):
         # Backbone network
         if backbone == 'resnet18':
             from models.backbone.resnet_backbone import ResNetBackbone
-            self.backbone = ResNetBackbone(depth=18, pretrained=pretrained)
+            self.backbone = ResNetBackbone(depth=18)
             channels = (256, 512)
             self.fea_channel = 256
             self.conv_block = BasicConv
         elif backbone == 'resnet34':
             from models.backbone.resnet_backbone import ResNetBackbone
-            self.backbone = ResNetBackbone(depth=34, pretrained=pretrained)
+            self.backbone = ResNetBackbone(depth=34)
             channels = (256, 512)
             self.fea_channel = 256
             self.conv_block = BasicConv
-        elif backbone == 'resnet50':
-            from models.backbone.resnet_backbone import ResNetBackbone
-            self.backbone = ResNetBackbone(depth=50, pretrained=pretrained)
-            channels = (256*4, 512*4)
+        elif backbone == 'regnet400':
+            from models.backbone.regnet_backbone import RegNetBackbone
+            self.backbone = RegNetBackbone(mf=400)
+            channels = (208, 440)
+            self.fea_channel = 256
+            self.conv_block = BasicConv
+        elif backbone == 'regnet800':
+            from models.backbone.regnet_backbone import RegNetBackbone
+            self.backbone = RegNetBackbone(mf=800)
+            channels = (320, 784)
             self.fea_channel = 256
             self.conv_block = BasicConv
         elif backbone == 'vgg11':
             from models.backbone.vgg_backbone import VGGBackbone
-            self.backbone = VGGBackbone(depth=11, pretrained=pretrained)
+            self.backbone = VGGBackbone(depth=11)
             channels = (512, 512)
             self.fea_channel = 256
             self.conv_block = BasicConv
         elif backbone == 'vgg16':
             from models.backbone.vgg_backbone import VGGBackbone
-            self.backbone = VGGBackbone(depth=16, pretrained=pretrained)
+            self.backbone = VGGBackbone(depth=16)
             channels = (512, 512)
-            self.fea_channel = 256
-            self.conv_block = BasicConv
-        elif backbone == 'repvgg-A0':
-            from models.backbone.repvgg_backbone import REPVGGBackbone
-            self.backbone = REPVGGBackbone(version='A0', pretrained=pretrained)
-            channels = (192, 1280)
             self.fea_channel = 256
             self.conv_block = BasicConv
         elif backbone == 'repvgg-A1':
             from models.backbone.repvgg_backbone import REPVGGBackbone
-            self.backbone = REPVGGBackbone(version='A1', pretrained=pretrained)
+            self.backbone = REPVGGBackbone(version='A1')
             channels = (256, 1280)
             self.fea_channel = 256
             self.conv_block = BasicConv
         elif backbone == 'repvgg-A2':
             from models.backbone.repvgg_backbone import REPVGGBackbone
-            self.backbone = REPVGGBackbone(version='A2', pretrained=pretrained)
+            self.backbone = REPVGGBackbone(version='A2')
             channels = (384, 1408)
             self.fea_channel = 256
             self.conv_block = BasicConv
         elif backbone == 'repvgg-B1':
             from models.backbone.repvgg_backbone import REPVGGBackbone
-            self.backbone = REPVGGBackbone(version='B1', pretrained=pretrained)
+            self.backbone = REPVGGBackbone(version='B1')
             channels = (512, 2048)
             self.fea_channel = 256
             self.conv_block = BasicConv
         elif backbone == 'repvgg-B2':
             from models.backbone.repvgg_backbone import REPVGGBackbone
-            self.backbone = REPVGGBackbone(version='B2', pretrained=pretrained)
+            self.backbone = REPVGGBackbone(version='B2')
             channels = (640, 2560)
             self.fea_channel = 256
             self.conv_block = BasicConv
         elif backbone == 'shufflenet-0.5':
             from models.backbone.shufflenet_backbone import ShuffleNetBackbone
-            self.backbone = ShuffleNetBackbone(width=0.5, pretrained=pretrained)
+            self.backbone = ShuffleNetBackbone(width=0.5)
             channels = (96, 192)
             self.fea_channel = 128
             self.conv_block = DepthwiseConv
         elif backbone == 'shufflenet-1.0':
             from models.backbone.shufflenet_backbone import ShuffleNetBackbone
-            self.backbone = ShuffleNetBackbone(width=1.0, pretrained=pretrained)
+            self.backbone = ShuffleNetBackbone(width=1.0)
             channels = (232, 464)
             self.fea_channel = 128
             self.conv_block = DepthwiseConv

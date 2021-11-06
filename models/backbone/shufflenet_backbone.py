@@ -63,7 +63,7 @@ class InvertedResidual(nn.Module):
 
 
 class ShuffleNetBackbone(nn.Module):
-    def __init__(self, width=1.0, pretrained=False):
+    def __init__(self, width=1.0, pretrained=True):
         super(ShuffleNetBackbone, self).__init__()
         self.width = width
         if self.width == 0.5:

@@ -195,6 +195,7 @@ def detection_collate(batch):
                 imgs.append(tup)
             elif isinstance(tup, type(np.empty(0))):
                 annos = torch.from_numpy(tup).float()
+                annos.requires_grad = False
                 targets.append(annos)
 
     return (torch.stack(imgs, 0), targets)

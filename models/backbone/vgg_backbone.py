@@ -8,7 +8,7 @@ import torch.nn.init as init
 import torch.utils.model_zoo as model_zoo
 
 class VGGBackbone(nn.Module):
-    def __init__(self, depth=16, pretrained=False):
+    def __init__(self, depth=16, pretrained=True):
         super(VGGBackbone, self).__init__()
         if depth == 11:
             cfg = [64, 'M', 128, 'M', 256, 256, 'M', 512, 512, 'M', 512, 512]

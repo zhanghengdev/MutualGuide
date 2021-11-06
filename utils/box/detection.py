@@ -19,8 +19,8 @@ def Detect(predictions, prior, scale, eval_thresh=0.01, nms_thresh=0.5):
     conf_scores=conf_scores[keep]
     
     keep = torchvision.ops.nms(decoded_boxes, conf_scores.max(1)[0], iou_threshold=nms_thresh)
-    decoded_boxes=decoded_boxes[keep].cpu().numpy()
-    conf_scores=conf_scores[keep].cpu().numpy()
+    decoded_boxes=decoded_boxes[keep]
+    conf_scores=conf_scores[keep]
     
-    return (decoded_boxes, conf_scores)
+    return (decoded_boxes.cpu().numpy(), conf_scores.cpu().numpy())
 

@@ -15,7 +15,7 @@ import torch.backends.cudnn as cudnn
 from torch.autograd import Variable
 import torch.utils.data as data
 from apex import amp
-from data import detection_collate
+from data import detection_collate, DataPrefetcher
 from utils import PriorBox
 from utils import MultiBoxLoss
 from utils import Timer, ModelEMA
@@ -43,13 +43,11 @@ parser.add_argument('--save_folder', default='weights/')
 parser.add_argument('--multi_anchor', action='store_true')
 parser.add_argument('--multi_level', action='store_true')
 parser.add_argument('--mutual_guide', action='store_true')
-parser.add_argument('--pretrained', action='store_true')
 parser.add_argument('--base_anchor_size', default=24.0, type=float)
 parser.add_argument('--size', default=320, type=int)
 parser.add_argument('--batch_size', default=32, type=int)
 parser.add_argument('--lr', default=1e-2, type=float)
 parser.add_argument('--warm_iter', default=500, type=int)
-parser.add_argument('--mixup', action='store_true')
 args = parser.parse_args()
 print(args)
 
@@ -77,10 +75,10 @@ if __name__ == '__main__':
     else:
         raise NotImplementedError('Unkown dataset {}!'.format(args.dataset))
 
-    print('Loading Optimizer & Network...')
+    print('Loading Optimizer & Network & Criterion...')
     from models.teacher_detector import Detector
     model = Detector(args.size, dataset.num_classes, args.backbone, args.neck,
-        multi_anchor=args.multi_anchor, multi_level=args.multi_level, pretrained=args.pretrained).cuda()
+        multi_anchor=args.multi_anchor, multi_level=args.multi_level).cuda()
     optimizer = optim.SGD(tencent_trick(model), lr=args.lr, momentum=0.9, weight_decay=0.0005)
     model, optimizer = amp.initialize(model, optimizer, opt_level="O1")
     ema_model = ModelEMA(model)
@@ -88,7 +86,7 @@ if __name__ == '__main__':
     print('Total param is : {:e}'.format(num_param))
 
     print('Preparing Criterion & AnchorBoxes...')
-    criterion = MultiBoxLoss(mutual_guide=args.mutual_guide, multi_anchor=args.multi_anchor)
+    criterion = MultiBoxLoss(mutual_guide=args.mutual_guide)
     priors = PriorBox(args.base_anchor_size, args.size, base_size=args.size, 
         multi_anchor=args.multi_anchor, multi_level=args.multi_level).cuda()
 
@@ -101,58 +99,38 @@ if __name__ == '__main__':
     for iteration in range(max_iter):
         if iteration % epoch_size == 0:
 
-            # random resize
-            if iteration < 0.8*max_iter and iteration > args.warm_iter:
-                if args.size == 320:
-                    new_size = 64 * (5 + random.choice([-1,0,1]))
-                elif args.size == 512:
-                    new_size = 128 * (4 + random.choice([-1,0,1]))
-                else:
-                    raise ValueError
-            else:
-                new_size = args.size
-            print('Switching image size to {}...'.format(new_size))
-            dataset.size = new_size
-            priors = PriorBox(args.base_anchor_size, new_size, base_size=args.size, 
-                multi_anchor=args.multi_anchor, multi_level=args.multi_level).cuda()
-
             # create batch iterator
             rand_loader = data.DataLoader(
                 dataset, args.batch_size, shuffle=True, num_workers=4, collate_fn=detection_collate
             )
-            batch_iterator = iter(rand_loader)
-            ema_model.update_attr(model)
+            prefetcher = DataPrefetcher(rand_loader)
             model.train()
 
         # traning iteratoin
         timer.tic()
         adjust_learning_rate(optimizer, args.lr, iteration, args.warm_iter, max_iter)
-        (images, targets) = next(batch_iterator)
-        images = Variable(images.cuda())
-        targets = [Variable(anno.cuda()) for anno in targets]
+        (images, targets) = prefetcher.next()
 
-        if args.mixup and iteration < int(0.8*max_iter):
-            # mixup
-            alpha = 1.0
-            lam = np.random.beta(alpha,alpha)
-            index = torch.randperm(args.batch_size).cuda()
-            inputs = lam*images + (1-lam)*images[index,:]
-            targets_a, targets_b = targets, [ targets[index[i]] for i in range(args.batch_size)]
-            out = model.forward_test(inputs)
-            (loss_l_a, loss_c_a) = criterion(out[:2], priors, targets_a)
-            (loss_l_b, loss_c_b) = criterion(out[:2], priors, targets_b)
-            loss_l = lam * loss_l_a + (1 - lam) * loss_l_b
-            loss_c = lam * loss_c_a + (1 - lam) * loss_c_b
-        else:
-            # non mixup
-            out = model.forward_test(images)
-            (loss_l, loss_c) = criterion(out[:2], priors, targets)
+        # random resize
+        if iteration < args.warm_iter or iteration >= 0.8*max_iter:
+            new_size = args.size
+        elif args.size == 320:
+            new_size = 64 * (5 + random.choice([-1,0,1]))
+        elif args.size == 512:
+            new_size = 128 * (4 + random.choice([-1,0,1]))
+        images = nn.functional.interpolate(
+                images, size=(new_size, new_size), mode="bilinear", align_corners=False
+            )
+        priors = PriorBox(args.base_anchor_size, new_size, base_size=args.size, 
+            multi_anchor=args.multi_anchor, multi_level=args.multi_level).cuda()
+
+        out = model.forward_test(images)
+        (loss_l, loss_c) = criterion(out[:2], priors, targets)
         loss = loss_l + loss_c
 
         optimizer.zero_grad()
         with amp.scale_loss(loss, optimizer) as scaled_loss:
             scaled_loss.backward()
-        # loss.backward()
         optimizer.step()
         ema_model.update(model)
         load_time = timer.toc()
@@ -170,7 +148,7 @@ if __name__ == '__main__':
                 load_time * (max_iter - iteration) / 3600,
                 ))
             timer.clear()
-    
+
     # model saving
     model = ema_model.ema
     save_path = os.path.join(args.save_folder, '{}_{}_{}_{}_size{}_anchor{}{}.pth'.format(
@@ -188,4 +166,3 @@ if __name__ == '__main__':
             }
     print('Saving to {}'.format(save_path))
     torch.save(tosave, save_path)
-

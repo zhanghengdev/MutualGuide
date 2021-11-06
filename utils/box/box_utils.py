@@ -33,36 +33,10 @@ def jaccard(box_a, box_b):
     return inter / union  # [A,B]
 
 
-def centerness(box_a, box_b):
-    """ Calculate centerness score of center points of box_b according to box_a """
-    
-    A = box_a.size(0)
-    B = box_b.size(0)
-    ac_boxes = box_b.unsqueeze(0).expand(A, B, 4)
-    gt_boxes = box_a.unsqueeze(1).expand(A, B, 4)
-    left_right = torch.stack((ac_boxes[:,:,0]-gt_boxes[:,:,0],     # x-x1
-                              gt_boxes[:,:,2]-ac_boxes[:,:,0]), 2) # x2-x
-    left_right = (left_right.min(dim=-1)[0] / left_right.max(dim=-1)[0])
-    left_right[left_right < 0] = 0        # points outside gt boxes
-    top_bottom = torch.stack((ac_boxes[:,:,1]-gt_boxes[:,:,1],     # y-y1
-                              gt_boxes[:,:,3]-ac_boxes[:,:,1]), 2) # y2-y
-    top_bottom = (top_bottom.min(dim=-1)[0] / top_bottom.max(dim=-1)[0])
-    top_bottom[top_bottom < 0] = 0        # points outside gt boxes
-    centerness = torch.min(left_right, top_bottom)
-    gt_sizes = torch.sqrt((gt_boxes[:,:,2]-gt_boxes[:,:,0]) * (gt_boxes[:,:,3]-gt_boxes[:,:,1]))
-    thresh = ac_boxes[:,:,2] / 2.0
-    thresh[thresh == thresh.min()] = 0.0
-    centerness[gt_sizes <= thresh] = 0.0
-    thresh = ac_boxes[:,:,3] * 2.0
-    thresh[thresh == thresh.max()] = 1.0
-    centerness[gt_sizes >= thresh] = 0.0
-    return centerness
-
-
-def match(truths, priors, labels, loc_t, conf_t, overlap_t, idx, multi_anchor=True):
+def match(truths, priors, labels, loc_t, conf_t, overlap_t, idx):
     """ Match each prior box with the ground truth box """
 
-    overlaps = jaccard(truths, point_form(priors)) if multi_anchor else centerness(truths, priors)
+    overlaps = jaccard(truths, point_form(priors))
     (best_truth_overlap, best_truth_idx) = overlaps.max(0)
     (best_prior_overlap, best_prior_idx) = overlaps.max(1)
     best_truth_overlap.index_fill_(0, best_prior_idx, 1)  # ensure best prior
@@ -74,16 +48,14 @@ def match(truths, priors, labels, loc_t, conf_t, overlap_t, idx, multi_anchor=Tr
     loc_t[idx] = truths[best_truth_idx]  # Shape: [num_priors,4]
 
 
-def mutual_match(truths, priors, regress, classif, labels, loc_t, conf_t, overlap_t, pred_t, idx, multi_anchor=True, sigma=2.0):
+def mutual_match(truths, priors, regress, classif, labels, loc_t, conf_t, overlap_t, pred_t, idx, topk=15, sigma=2.0):
     """Classify to regress and regress to classify, Mutual Match for label assignement """
 
     num_obj = truths.size()[0]
-
-    topk = 15 if multi_anchor else 5
     reg_overlaps = jaccard(truths, decode(regress, priors))
-    pred_classifs = jaccard(truths, point_form(priors)) if multi_anchor else centerness(truths, priors)
+    pred_classifs = jaccard(truths, point_form(priors))
     classif = classif.sigmoid().t()[labels - 1, :]
-    pred_classifs = pred_classifs ** ((sigma - classif) / sigma)
+    pred_classifs = pred_classifs ** ((sigma - classif + 1e-6) / sigma)
     reg_overlaps[reg_overlaps != reg_overlaps.max(dim=0, keepdim=True)[0]] = 0.0
     pred_classifs[pred_classifs != pred_classifs.max(dim=0, keepdim=True)[0]] = 0.0
 

@@ -92,7 +92,7 @@ class Bottleneck(nn.Module):
 
 class ResNetBackbone(nn.Module):
 
-    def __init__(self, depth=18, pretrained=False):
+    def __init__(self, depth=18, pretrained=True):
         super(ResNetBackbone, self).__init__()
         self.inplanes = 64
         self.dilation = 1

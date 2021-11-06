@@ -104,7 +104,7 @@ class RepVGGBlock(nn.Module):
 
 class REPVGGBackbone(nn.Module):
 
-    def __init__(self, version='A2', override_groups_map=None, deploy=False, pretrained=False):
+    def __init__(self, version='A2', override_groups_map=None, deploy=False, pretrained=True):
         super(REPVGGBackbone, self).__init__()
 
         self.version = version

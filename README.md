@@ -9,6 +9,7 @@ For more details, please refer to our [ACCV paper](https://openaccess.thecvf.com
 
 # Planning
 - [x] Add [RepVGG](https://arxiv.org/abs/2101.03697) backbone.
+- [x] Add [RegNet](https://arxiv.org/abs/2003.13678) backbone.
 - [x] Add [ShuffleNetV2](https://arxiv.org/abs/1807.11164) backbone.
 - [x] Add **TensorRT** transform code for inference acceleration.
 - [x] Add **draw** function to plot detection results.
@@ -70,6 +71,7 @@ For training with [Mutual Guide](https://openaccess.thecvf.com/content/ACCV2020/
 $ python3 train.py --neck ssd --backbone vgg16    --dataset VOC --size 320 --multi_level --multi_anchor --mutual_guide --pretrained
                           fpn            resnet34           COCO       512
                           pafpn          repvgg-A2          XML
+                                         regnet800
                                          shufflenet-1.0
 ```
 
@@ -78,6 +80,7 @@ For knowledge distillation using [PDF-Distil](https://www.bmvc2021.com/):
 $ python3 distil.py --neck ssd --backbone vgg11    --dataset VOC --size 320 --multi_level --multi_anchor --mutual_guide --pretrained --kd pdf
                            fpn            resnet18           COCO       512
                            pafpn          repvgg-A1          XML
+                                          regnet400
                                           shufflenet-0.5
 ```
 

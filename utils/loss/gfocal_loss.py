@@ -12,8 +12,9 @@ class GFocalLoss(nn.Module):
         self.gamma = gamma
         self.loss_weight = loss_weight
 
-    def forward(self, pred, target, mask):
-        pred, target = pred[mask], target[mask]
+    def forward(self, pred, target, mask=None):
+        if mask is not None:
+            pred, target = pred[mask], target[mask]
         pred_sigmoid = pred.sigmoid()
         target = target.type_as(pred)
         focal_weight = (target - pred_sigmoid).abs().pow(self.gamma)

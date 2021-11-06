@@ -36,7 +36,6 @@ parser.add_argument('--backbone', default='resnet18')
 parser.add_argument('--dataset', default='COCO')
 parser.add_argument('--multi_anchor', action='store_true')
 parser.add_argument('--multi_level', action='store_true')
-parser.add_argument('--pretrained', action='store_true')
 parser.add_argument('--seq_matcher', action='store_true')
 parser.add_argument('--base_anchor_size', default=24.0, type=float)
 parser.add_argument('--size', default=320, type=int)
@@ -67,7 +66,7 @@ if __name__ == '__main__':
     print('Loading Network...')
     from models.teacher_detector import Detector
     model = Detector(args.size, testset.num_classes, args.backbone, args.neck,
-        multi_anchor=args.multi_anchor, multi_level=args.multi_level, pretrained=args.pretrained).cuda()
+        multi_anchor=args.multi_anchor, multi_level=args.multi_level).cuda()
     
     print('Loading weights from', args.trained_model)
     state_dict = torch.load(args.trained_model)
