@@ -68,7 +68,7 @@ $ ln -s /path_to_your_coco_dataset datasets/coco2017
 
 For training with [Mutual Guide](https://openaccess.thecvf.com/content/ACCV2020/html/Zhang_Localize_to_Classify_and_Classify_to_Localize_Mutual_Guidance_in_ACCV_2020_paper.html):
 ```Shell
-$ python3 train.py --neck ssd --backbone vgg16    --dataset VOC --size 320 --multi_level --multi_anchor --mutual_guide --pretrained
+$ python3 train.py --neck ssd --backbone vgg16    --dataset VOC --size 320 --multi_level --multi_anchor --mutual_guide
                           fpn            resnet34           COCO       512
                           pafpn          repvgg-A2          XML
                                          regnet800
@@ -77,7 +77,7 @@ $ python3 train.py --neck ssd --backbone vgg16    --dataset VOC --size 320 --mul
 
 For knowledge distillation using [PDF-Distil](https://www.bmvc2021.com/):
 ```Shell
-$ python3 distil.py --neck ssd --backbone vgg11    --dataset VOC --size 320 --multi_level --multi_anchor --mutual_guide --pretrained --kd pdf
+$ python3 distil.py --neck ssd --backbone vgg11    --dataset VOC --size 320 --multi_level --multi_anchor --mutual_guide --kd pdf
                            fpn            resnet18           COCO       512
                            pafpn          repvgg-A1          XML
                                           regnet400
@@ -95,7 +95,7 @@ $ python3 distil.py --neck ssd --backbone vgg11    --dataset VOC --size 320 --mu
 
 Every time you want to evaluate a trained network:
 ```Shell
-$ python3 test.py --neck ssd --backbone vgg11    --dataset VOC --size 320 --trained_model path_to_saved_weights --multi_level --multi_anchor --pretrained --draw
+$ python3 test.py --neck ssd --backbone vgg11    --dataset VOC --size 320 --trained_model path_to_saved_weights --multi_level --multi_anchor --draw
                          fpn            resnet18           COCO       512
                          pafpn          repvgg-A1          XML
                                         shufflenet-0.5
