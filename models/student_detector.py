@@ -132,11 +132,12 @@ class Detector(nn.Module):
         fea = torch.cat([o.view(o.size(0), -1) for o in fea], 1)
         loc = torch.cat([o.view(o.size(0), -1) for o in loc], 1)
         conf = torch.cat([o.view(o.size(0), -1) for o in conf], 1)
-        return (
-            loc.view(loc.size(0), -1, 4), 
-            conf.view(conf.size(0), -1, self.num_classes),
-            fea.view(conf.size(0), -1, self.fea_channel),
-            )
+
+        return {
+            'loc': loc.view(loc.size(0), -1, 4), 
+            'conf': conf.view(conf.size(0), -1, self.num_classes),
+            'feature': fea.view(conf.size(0), -1, self.fea_channel),
+        }
 
 
     def forward_test(self, x):
@@ -151,7 +152,8 @@ class Detector(nn.Module):
             conf.append(c(x).permute(0, 2, 3, 1).contiguous())
         loc = torch.cat([o.view(o.size(0), -1) for o in loc], 1)
         conf = torch.cat([o.view(o.size(0), -1) for o in conf], 1)
-        return (
-            loc.view(loc.size(0), -1, 4), 
-            conf.view(conf.size(0), -1, self.num_classes),
-            )
+        
+        return {
+            'loc': loc.view(loc.size(0), -1, 4), 
+            'conf': conf.view(conf.size(0), -1, self.num_classes),
+        }

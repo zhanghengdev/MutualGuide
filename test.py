@@ -53,10 +53,10 @@ if __name__ == '__main__':
     print('Loading Dataset...')
     if args.dataset == 'VOC':
         from data import VOCDetection
-        testset = VOCDetection([('2007', 'test')], args.size)
+        testset = VOCDetection([('2007', 'test')], args.size, cache=False)
     elif args.dataset == 'COCO':
         from data import COCODetection
-        testset = COCODetection([('2017', 'val')], args.size)
+        testset = COCODetection([('2017', 'val')], args.size, cache=False)
     elif args.dataset == 'XML':
         from data import XMLDetection
         testset = XMLDetection('val', args.size)
@@ -70,11 +70,11 @@ if __name__ == '__main__':
     
     print('Loading weights from', args.trained_model)
     state_dict = torch.load(args.trained_model)
-    keys = list(state_dict["model"].keys())
+    keys = list(state_dict['model'].keys())
     for k in keys:
         if 'dist' in k:
-            state_dict["model"].pop(k)
-    model.load_state_dict(state_dict["model"], strict=True)
+            state_dict['model'].pop(k)
+    model.load_state_dict(state_dict['model'], strict=True)
     model.deploy()
 
     if args.trt:

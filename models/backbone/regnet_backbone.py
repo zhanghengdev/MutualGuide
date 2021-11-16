@@ -428,8 +428,6 @@ class RegNetBackbone(nn.Module):
 
         if pretrained:
             self.load_pre_trained_weights()
-        else:
-            self._reset_parameters()
 
     def forward(self, x: Tensor) -> Tensor:
         x = self.stem(x)
@@ -453,22 +451,3 @@ class RegNetBackbone(nn.Module):
                 state_dict.pop(key)
         self.load_state_dict(state_dict, strict=True)
 
-    def _reset_parameters(self) -> None:
-        # Performs ResNet-style weight initialization
-        for m in self.modules():
-            if isinstance(m, nn.Conv2d):
-                # Note that there is no bias due to BN
-                fan_out = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
-                nn.init.normal_(m.weight, mean=0.0, std=math.sqrt(2.0 / fan_out))
-            elif isinstance(m, nn.BatchNorm2d):
-                nn.init.ones_(m.weight)
-                nn.init.zeros_(m.bias)
-            elif isinstance(m, nn.Linear):
-                nn.init.normal_(m.weight, mean=0.0, std=0.01)
-                nn.init.zeros_(m.bias)
-
-if __name__ == '__main__':
-    model = RegNetBackbone(400)
-    print(model)
-    i = torch.ones((32,3,320,320))
-    model(i)

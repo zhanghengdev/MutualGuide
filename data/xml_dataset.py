@@ -66,6 +66,8 @@ class XMLDetection(data.Dataset):
         img_id = self.ids[index]
         target = ET.parse(self._annopath % img_id).getroot()
         res = np.empty((0,5)) 
+        width = float(target.find('size').find('width').text)
+        height = float(target.find('size').find('height').text)
         for obj in target.iter('object'):
             name = obj.find('name').text.lower().strip()
             bbox = obj.find('bndbox')
@@ -74,6 +76,8 @@ class XMLDetection(data.Dataset):
             for i, pt in enumerate(pts):
                 cur_pt = int(bbox.find(pt).text) - 1
                 bndbox.append(cur_pt)
+            for i, pt in enumerate([width, height, width, height]):
+                bndbox[i] /= pt
             label_idx = self.class_to_ind[name]
             bndbox.append(label_idx)
             res = np.vstack((res,bndbox))

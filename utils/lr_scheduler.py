@@ -3,10 +3,11 @@ import math
 
 def adjust_learning_rate(optimizer, base_lr, iteration, warm_iter, max_iter):
     """ warmup + cosine lr decay """
+    start_lr = base_lr / 10
     if iteration <= warm_iter:
-        lr = 1e-3 + (base_lr - 1e-3) * iteration / warm_iter
+        lr = start_lr + (base_lr - start_lr) * iteration / warm_iter
     else:
-        lr = 1e-3 + (base_lr - 1e-3) * 0.5 * (1 + math.cos((iteration - warm_iter) * math.pi / (max_iter - warm_iter)))
+        lr = start_lr + (base_lr - start_lr) * 0.5 * (1 + math.cos((iteration - warm_iter) * math.pi / (max_iter - warm_iter)))
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
     return lr

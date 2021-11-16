@@ -37,7 +37,7 @@ cudnn.benchmark = True
 
 parser = argparse.ArgumentParser(description='Pytorch Training')
 parser.add_argument('--neck', default='pafpn')
-parser.add_argument('--backbone', default='resnet-18')
+parser.add_argument('--backbone', default='resnet18')
 parser.add_argument('--dataset', default='COCO')
 parser.add_argument('--save_folder', default='weights/')
 parser.add_argument('--multi_anchor', action='store_true')
@@ -153,8 +153,9 @@ if __name__ == '__main__':
         with torch.no_grad():
             out_t = teacher(images)
         out = model(images)
-        (loss_l, loss_c) = criterion_det(out[:2], priors, targets)
-        loss_kd = criterion_kd(out_t[2].detach(), out[2], out_t[1].detach(), out[1], priors, targets)
+        (loss_l, loss_c) = criterion_det(out, priors, targets)
+        loss_kd = criterion_kd(out_t['feature'].detach(), out['feature'], 
+            out_t['conf'].detach(), out['conf'], priors, targets)
         loss = loss_l + loss_c + loss_kd
         
         optimizer.zero_grad()

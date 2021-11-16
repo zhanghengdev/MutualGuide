@@ -21,9 +21,9 @@ class MultiBoxLoss(nn.Module):
         self.gfocal_loss = GFocalLoss()
         self.l1_loss = BalancedL1Loss()
         self.iou_loss = GIOULoss()
-
+        
     def forward(self, predictions, priors, targets):
-        (loc_data, conf_data) = predictions
+        (loc_data, conf_data) = predictions['loc'], predictions['conf']
         (num, num_priors, num_classes) = conf_data.size()
 
         if self.mutual_guide:
@@ -40,10 +40,10 @@ class MultiBoxLoss(nn.Module):
                     regress = loc_data[idx, :, :]
                     classif = conf_data[idx, :, :]
                     mutual_match(truths, priors, regress, classif, labels, loc_t, conf_t, overlap_t, pred_t, idx)
-                loc_t = Variable(loc_t, requires_grad=False)
-                conf_t = Variable(conf_t, requires_grad=False)
-                overlap_t = Variable(overlap_t, requires_grad=False)
-                pred_t = Variable(pred_t, requires_grad=False)
+                loc_t.requires_grad = False
+                conf_t.requires_grad = False
+                overlap_t.requires_grad = False
+                pred_t.requires_grad = False
 
             # Localization Loss (Smooth L1)
             pos = pred_t >= 3.0
@@ -76,9 +76,9 @@ class MultiBoxLoss(nn.Module):
                 truths = targets[idx][:, :-1]
                 labels = targets[idx][:, -1].long()
                 match(truths, priors, labels, loc_t, conf_t, overlap_t, idx)
-            overlap_t = Variable(overlap_t, requires_grad=False)
-            loc_t = Variable(loc_t, requires_grad=False)
-            conf_t = Variable(conf_t, requires_grad=False)
+            overlap_t.requires_grad = False
+            loc_t.requires_grad = False
+            conf_t.requires_grad = False
 
             pos = overlap_t >= 0.5
             ign = (overlap_t < 0.5) * (overlap_t >= 0.4)

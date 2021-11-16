@@ -14,18 +14,17 @@ from .data_augment import preproc_for_train
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
 
-COCOroot = os.path.join('datasets/', 'coco2017/')
 
 class COCODetection(data.Dataset):
 
     """ COCO Detection Dataset Object """
 
-    def __init__(self, image_sets, size, dataset_name='COCO'):
-        self.root = COCOroot
+    def __init__(self, image_sets, size, dataset_name='COCO2017', cache=True):
+        self.root = os.path.join('datasets/', 'coco2017/')
         self.cache_path = os.path.join(self.root, 'cache')
         self.image_set = image_sets
         self.size = size
-        self.name = dataset_name
+        self.name = dataset_name+str(self.image_set)+str(self.size)
         self.ids = list()
         self.annotations = list()
         for (year, image_set) in image_sets:
@@ -55,7 +54,8 @@ class COCODetection(data.Dataset):
                             annotations.append(a)
                     self.ids = ids
                     self.annotations = annotations
-        self.num_classes = len(self.pull_classes())
+        if cache:
+            self._cache_images()
 
     def pull_classes(self):
         return self._classes
@@ -104,7 +104,7 @@ class COCODetection(data.Dataset):
             x2 = np.min((width - 1, x1 + np.max((0, obj['bbox'][2] - 1))))
             y2 = np.min((height - 1, y1 + np.max((0, obj['bbox'][3] - 1))))
             if obj['area'] > 0 and (x2-x1) > 6 and (y2-y1) > 6:
-                obj['clean_bbox'] = [x1, y1, x2, y2]
+                obj['clean_bbox'] = [x1/width, y1/height, x2/width, y2/height]
                 valid_objs.append(obj)
         objs = valid_objs
         num_objs = len(objs)
@@ -124,21 +124,60 @@ class COCODetection(data.Dataset):
         return res
 
 
+    def _cache_images(self):
+        cache_file = self.root + "/img_resized_cache_" + self.name + ".array"
+        if not os.path.exists(cache_file):
+            print(
+                "Caching images for the first time..."
+            )
+            self.imgs = np.memmap(
+                cache_file,
+                shape=(len(self.ids), self.size, self.size, 3),
+                dtype=np.uint8,
+                mode="w+",
+            )
+            from tqdm import tqdm
+            from multiprocessing.pool import ThreadPool
+
+            NUM_THREADs = min(8, os.cpu_count())
+            loaded_images = ThreadPool(NUM_THREADs).imap(
+                lambda x: self.pull_image(x, resize=True),
+                range(len(self.ids)),
+            )
+            pbar = tqdm(enumerate(loaded_images), total=len(self.ids))
+            for k, out in pbar:
+                self.imgs[k] = out()
+            self.imgs.flush()
+            pbar.close()
+        
+        print("Loading cached imgs...")
+        self.imgs = np.memmap(
+            cache_file,
+            shape=(len(self.ids), self.size, self.size, 3),
+            dtype=np.uint8,
+            mode="r+",
+        )
+
+    def pull_image(self, index, resize=False):
+        ''' Returns the original image object at index '''
+        img_id = self.ids[index]
+        image = cv2.imread(img_id, cv2.IMREAD_COLOR)
+        if resize:
+            image = cv2.resize(image, (self.size, self.size), interpolation=cv2.INTER_LINEAR)
+        return image
 
     def __getitem__(self, index):
         img_id = self.ids[index]
         target = self.annotations[index]
-        img = cv2.imread(img_id, cv2.IMREAD_COLOR)
+        if self.imgs is not None:
+            img = self.imgs[index]()
+        else:
+            img = self.pull_image(index)
         img, target = preproc_for_train(img, target, self.size)
         return img, target
 
     def __len__(self):
         return len(self.ids)
-
-    def pull_image(self, index):
-        ''' Returns the original image object at index '''
-        img_id = self.ids[index]
-        return cv2.imread(img_id, cv2.IMREAD_COLOR)
 
     def _print_detection_eval_metrics(self, coco_eval):
         IoU_lo_thresh = 0.5

@@ -108,27 +108,18 @@ class REPVGGBackbone(nn.Module):
         super(REPVGGBackbone, self).__init__()
 
         self.version = version
-        if self.version == 'A0':
-            num_blocks=[2, 4, 14, 1]
-            width_multiplier=[0.75, 0.75, 0.75, 2.5]
-        elif self.version == 'A1':
+        if self.version == 'A1':
             num_blocks=[2, 4, 14, 1]
             width_multiplier=[1, 1, 1, 2.5]
         elif self.version == 'A2':
             num_blocks=[2, 4, 14, 1]
             width_multiplier=[1.5, 1.5, 1.5, 2.75]
-        elif self.version == 'B0':
-            num_blocks=[4, 6, 16, 1]
-            width_multiplier=[1, 1, 1, 2.5]
         elif self.version == 'B1':
             num_blocks=[4, 6, 16, 1]
             width_multiplier=[2, 2, 2, 4]
         elif self.version == 'B2':
             num_blocks=[4, 6, 16, 1]
             width_multiplier=[2.5, 2.5, 2.5, 5]
-        elif self.version == 'B3':
-            num_blocks=[4, 6, 16, 1]
-            width_multiplier=[3, 3, 3, 5]
         else:
             raise ValueError
 
@@ -155,11 +146,11 @@ class REPVGGBackbone(nn.Module):
     def load_pre_trained_weights(self):
         print('Loading Pytorch pretrained weights...')
         pretrained_dict = {
-            'A0': 'weights/REGVGGPretrained/RepVGG-A0-train.pth',
-            'A1': 'weights/REGVGGPretrained/RepVGG-A1-train.pth',
-            'A2': 'weights/REGVGGPretrained/RepVGG-A2-train.pth',
-            'B1': 'weights/REGVGGPretrained/RepVGG-B1-train.pth',
-            'B2': 'weights/REGVGGPretrained/RepVGG-B2-train.pth',
+            'A0': 'weights/TorchPretrained/RepVGG-A0-train.pth',
+            'A1': 'weights/TorchPretrained/RepVGG-A1-train.pth',
+            'A2': 'weights/TorchPretrained/RepVGG-A2-train.pth',
+            'B1': 'weights/TorchPretrained/RepVGG-B1-train.pth',
+            'B2': 'weights/TorchPretrained/RepVGG-B2-train.pth',
         }
         pretrained_dict = torch.load(pretrained_dict[self.version])
         pretrained_dict.pop('linear.weight')

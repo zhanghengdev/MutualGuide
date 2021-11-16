@@ -35,13 +35,12 @@ class PAFPNNeck(FPNNeck):
         for v in self.pyramid_ext:
             x = v(x)
             fpn_fea.append(x)
-        laterals = [lateral_conv(x) for (x, lateral_conv) in zip(fpn_fea, self.lateral_convs)]
+        fpn_fea = [lateral_conv(x) for (x, lateral_conv) in zip(fpn_fea, self.lateral_convs)]
         for i in range(self.fpn_level - 1, 0, -1):
-            size = laterals[i - 1].size()[-2:]
-            laterals[i - 1] = laterals[i - 1] + F.interpolate(laterals[i], size=size, mode='nearest')
-        fpn_fea = [fpn_conv(x) for (x, fpn_conv) in zip(laterals, self.fpn_convs)]
+            fpn_fea[i - 1] = fpn_fea[i - 1] + F.interpolate(fpn_fea[i], scale_factor=2.0, mode='nearest')
+        fpn_fea = [fpn_conv(x) for (x, fpn_conv) in zip(fpn_fea, self.fpn_convs)]
         for i in range(0, self.fpn_level - 1):
             fpn_fea[i + 1] = fpn_fea[i + 1] + self.downsample_convs[i](fpn_fea[i])
-        laterals = [pafpn_conv(x) for (x, pafpn_conv) in zip(fpn_fea, self.pafpn_convs)]
-        return laterals
+        fpn_fea = [pafpn_conv(x) for (x, pafpn_conv) in zip(fpn_fea, self.pafpn_convs)]
+        return fpn_fea
 

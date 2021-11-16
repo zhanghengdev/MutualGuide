@@ -8,7 +8,22 @@ import math
 import torch
 
 
-def _crop(image, boxes, labels, p=0.75, min_iou=0.75, max_iou=0.25):
+def _crop_expand(
+    image: np.ndarray, 
+    boxes: np.ndarray, 
+    labels: np.ndarray, 
+    min_scale: float = 0.25, 
+    max_scale: float = 1.75, 
+    min_ratio: float = 0.5, 
+    max_ratio: float = 1.0, 
+    min_shift: float = 0.4, 
+    max_shift: float = 0.6, 
+    min_iou: float = 0.75, 
+    max_iou: float = 0.25, 
+    max_try: int = 10, 
+    img_mean: float = 114.0, 
+    p: float = 0.75, 
+) -> np.ndarray:
 
     def matrix_iou(a, b):
         lt = np.maximum(a[:, np.newaxis, :2], b[:, :2])
@@ -20,43 +35,75 @@ def _crop(image, boxes, labels, p=0.75, min_iou=0.75, max_iou=0.25):
     if random.random() > p:
         return (image, boxes, labels)
 
-    (height, width, _) = image.shape
-    while True:
-        scale = random.uniform(0.5, 1.)
-        min_ratio = max(0.5, scale * scale)
-        max_ratio = min(2, 1. / scale / scale)
-        ratio = math.sqrt(random.uniform(min_ratio, max_ratio))
-        w = int(scale * ratio * width)
-        h = int(scale / ratio * height)
+    (height, width, depth) = image.shape
+    assert height == width
+    
+    for _ in range(max_try):
+        new_h = random.uniform(min_scale, max_scale)
+        if random.randrange(2):
+            new_w = new_h * random.uniform(min_ratio, max_ratio)
+        else:
+            new_w = new_h / random.uniform(min_ratio, max_ratio)
 
-        l = random.randrange(width - w)
-        t = random.randrange(height - h)
-        roi = np.array((l, t, l + w, t + h))
+        for _ in range(max_try):
+            center_y = random.uniform(min_shift, max_shift)
+            center_x = random.uniform(min_shift, max_shift)
+            corner_y = center_y - new_h/2
+            corner_x = center_x - new_w/2
 
-        iou = matrix_iou(boxes, roi[np.newaxis])
-        iou = iou[iou < min_iou]
-        iou = iou[iou >= max_iou]
-        if len(iou) > 0:
-            continue
+            cropped_y1 = max(0, corner_y)
+            cropped_x1 = max(0, corner_x)
+            cropped_y2 = min(1.0, corner_y+new_h)
+            cropped_x2 = min(1.0, corner_x+new_w)
+            expand_y1 = max(0, -corner_y)
+            expand_x1 = max(0, -corner_x)
+            
+            real_cropped_y1 = int(cropped_y1 * height)
+            real_cropped_x1 = int(cropped_x1 * width)
+            real_cropped_y2 = int(cropped_y2 * height)
+            real_cropped_x2 = int(cropped_x2 * width)
+            real_expand_y1 = int(expand_y1 * height)
+            real_expand_x1 = int(expand_x1 * width)
+            real_expand_y2 = real_expand_y1 + real_cropped_y2 - real_cropped_y1
+            real_expand_x2 = real_expand_x1 + real_cropped_x2 - real_cropped_x1
 
-        image_t = image[roi[1]:roi[3], roi[0]:roi[2]]
+            cropped_image = image[
+                real_cropped_y1 : real_cropped_y2, real_cropped_x1 : real_cropped_x2
+            ]
+            expand_image = np.ones(
+                (math.ceil(height * new_h), math.ceil(width * new_w), depth)
+            ) * img_mean
+            expand_image[
+                real_expand_y1:real_expand_y2, real_expand_x1:real_expand_x2
+            ] = cropped_image
 
-        centers = (boxes[:, :2] + boxes[:, 2:]) / 2
-        mask = np.logical_and(roi[:2] < centers, centers < roi[2:]).all(axis=1)
-        boxes_t = boxes[mask].copy()
-        labels_t = labels[mask].copy()
-        if len(boxes_t) == 0:
-            continue
+            roi = np.array((cropped_x1, cropped_y1, cropped_x2, cropped_y2))
+            iou = matrix_iou(boxes, roi[np.newaxis])
+            iou = iou[iou < min_iou]
+            iou = iou[iou > max_iou]
+            if len(iou) > 0:
+                continue
 
-        boxes_t[:, :2] = np.maximum(boxes_t[:, :2], roi[:2])
-        boxes_t[:, :2] -= roi[:2]
-        boxes_t[:, 2:] = np.minimum(boxes_t[:, 2:], roi[2:])
-        boxes_t[:, 2:] -= roi[:2]
+            centers = (boxes[:, :2] + boxes[:, 2:]) / 2
+            mask = np.logical_and(roi[:2] < centers, centers < roi[2:]).all(axis=1)
+            boxes_t = boxes[mask].copy()
+            labels_t = labels[mask].copy()
+            if len(boxes_t) == 0:
+                continue
 
-        return (image_t, boxes_t, labels_t)
+            boxes_t[:, 0] = np.maximum(0, boxes_t[:, 0]-corner_x) / new_w
+            boxes_t[:, 1] = np.maximum(0, boxes_t[:, 1]-corner_y) / new_h
+            boxes_t[:, 2] = np.minimum(new_w, boxes_t[:, 2]-corner_x) / new_w
+            boxes_t[:, 3] = np.minimum(new_h, boxes_t[:, 3]-corner_y) / new_h
+
+            return (expand_image, boxes_t, labels_t)
+
+    return (image, boxes, labels)
 
 
-def _distort(image):
+def _distort(
+    image: np.ndarray, 
+) -> np.ndarray:
 
     def _convert(image, alpha=1, beta=0):
         tmp = image.astype(float) * alpha + beta
@@ -87,105 +134,63 @@ def _distort(image):
     return image
 
 
-def _expand(image, boxes, labels, p=0.75):
+def _mirror(
+    image: np.ndarray, 
+    boxes: np.ndarray, 
+) -> tuple:
 
-    if random.random() > p:
-        return (image, boxes, labels)
-
-    (height, width, depth) = image.shape
-    while True:
-        scale = random.uniform(1, 2)
-        min_ratio = max(0.5, 1. / scale / scale)
-        max_ratio = min(2, scale * scale)
-        ratio = math.sqrt(random.uniform(min_ratio, max_ratio))
-        ws = scale * ratio
-        hs = scale / ratio
-        if ws < 1 or hs < 1:
-            continue
-        w = int(ws * width)
-        h = int(hs * height)
-
-        left = random.randint(0, w - width)
-        top = random.randint(0, h - height)
-
-        boxes_t = boxes.copy()
-        boxes_t[:, :2] += (left, top)
-        boxes_t[:, 2:] += (left, top)
-
-        expand_image = np.ones((h, w, depth)) * 114.0
-        expand_image[top:top + height, left:left + width] = image
-        image = expand_image
-
-        return (image, boxes_t, labels)
-
-
-def _mirror(image, boxes):
-    (_, width, _) = image.shape
     if random.randrange(2):
         image = image[:, ::-1]
         boxes = boxes.copy()
-        boxes[:, 0::2] = width - boxes[:, 2::-2]
+        boxes[:, 0::2] = 1.0 - boxes[:, 2::-2]
     return (image, boxes)
 
 
-def preproc_for_test(image, insize, mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225), swap=(2, 0, 1)):
+def preproc_for_test(
+    image: np.ndarray, 
+    insize: int, 
+    mean: list = (0.485, 0.456, 0.406),
+    std: list = (0.229, 0.224, 0.225),
+    swap: list = (2, 0, 1),
+) -> tuple:
+
     image = cv2.resize(image, (insize, insize), interpolation=cv2.INTER_LINEAR)
     image = image.astype(np.float32)
     image = image[:, :, ::-1]
     image /= 255.0
-    if mean is not None:
-        image -= mean
-    if std is not None:
-        image /= std
+    image -= mean
+    image /= std
     image = image.transpose(swap)
     image = np.ascontiguousarray(image, dtype=np.float32)
     return image
 
 
-def preproc_for_train(image, targets, insize):
+def preproc_for_train(
+    image: np.ndarray,
+    targets: np.ndarray,
+    insize: int,
+) -> tuple:
+
+    assert len(targets) != 0,  'ERROR: No objects found for augmentation'
+
     boxes = targets[:, :-1].copy()
     labels = targets[:, -1].copy()
-    if len(boxes) == 0:
-        targets = np.zeros((1, 5))
-        image = preproc_for_test(image, insize)
-        return (torch.from_numpy(image), targets)
 
-    image_o = image.copy()
-    targets_o = targets.copy()
-    (height_o, width_o, _) = image_o.shape
-    boxes_o = targets_o[:, :-1]
-    labels_o = targets_o[:, -1]
-    boxes_o[:, 0::2] /= width_o
-    boxes_o[:, 1::2] /= height_o
-    labels_o = np.expand_dims(labels_o, 1)
-    targets_o = np.hstack((boxes_o, labels_o))
+    image = _distort(image)
+    (image, boxes, labels) = _crop_expand(image, boxes, labels)
+    (image, boxes) = _mirror(image, boxes)
 
-    image_t = _distort(image)
-    (image_t, boxes, labels) = _crop(image_t, boxes, labels)
-    (image_t, boxes, labels) = _expand(image_t, boxes, labels)
-    (image_t, boxes) = _mirror(image_t, boxes)
+    image = preproc_for_test(image, insize)
+    labels = np.expand_dims(labels, 1)
+    targets = np.hstack((boxes, labels))
 
-    (height, width, _) = image_t.shape
-    image_t = preproc_for_test(image_t, insize)
-    boxes = boxes.copy()
-    boxes[:, 0::2] /= width
-    boxes[:, 1::2] /= height
-    b_w = (boxes[:, 2] - boxes[:, 0]) * 1.
-    b_h = (boxes[:, 3] - boxes[:, 1]) * 1.
-    mask_b = np.minimum(b_w, b_h) > (8. / insize)
-    boxes_t = boxes[mask_b]
-    labels_t = labels[mask_b].copy()
-
-    if len(boxes_t) == 0:
-        image = preproc_for_test(image_o, insize)
-        return (torch.from_numpy(image), targets_o)
-
-    labels_t = np.expand_dims(labels_t, 1)
-    targets_t = np.hstack((boxes_t, labels_t))
-    return (torch.from_numpy(image_t), targets_t)
+    return (torch.from_numpy(image), targets)
 
 
-def detection_collate(batch):
+def detection_collate(
+    batch: tuple,
+) -> tuple:
+
     """ Custom collate fn for images and boxes """
     targets = []
     imgs = []

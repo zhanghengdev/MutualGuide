@@ -14,8 +14,7 @@ For more details, please refer to our [ACCV paper](https://openaccess.thecvf.com
 - [x] Add **TensorRT** transform code for inference acceleration.
 - [x] Add **draw** function to plot detection results.
 - [x] Add **custom dataset** training (annotations in `XML` format).
-- [ ] Add [Transformer](https://arxiv.org/abs/2102.12122) backbone.
-- [ ] Add [BiFPN](https://arxiv.org/abs/1911.09070) neck.
+- [ ] Add [SwinTransformer](https://arxiv.org/abs/2103.14030) backbone.
 
 
 # Benchmark

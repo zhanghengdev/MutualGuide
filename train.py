@@ -125,9 +125,9 @@ if __name__ == '__main__':
             multi_anchor=args.multi_anchor, multi_level=args.multi_level).cuda()
 
         out = model.forward_test(images)
-        (loss_l, loss_c) = criterion(out[:2], priors, targets)
+        (loss_l, loss_c) = criterion(out, priors, targets)
         loss = loss_l + loss_c
-
+        
         optimizer.zero_grad()
         with amp.scale_loss(loss, optimizer) as scaled_loss:
             scaled_loss.backward()

@@ -15,7 +15,6 @@ from .data_augment import preproc_for_train
 import xml.etree.ElementTree as ET
 
 
-VOCroot = os.path.join('datasets/', 'VOCdevkit/')
 VOC_CLASSES = ( '__background__', # always index 0
     'aeroplane', 'bicycle', 'bird', 'boat',
     'bottle', 'bus', 'car', 'cat', 'chair',
@@ -33,18 +32,23 @@ class AnnotationTransform(object):
 
     def __call__(self, target):
         res = np.empty((0,5))
+        width = float(target.find('size').find('width').text)
+        height = float(target.find('size').find('height').text)
         for obj in target.iter('object'):
             difficult = int(obj.find('difficult').text) == 1
             if not self.keep_difficult and difficult:
                 continue
-            name = obj.find('name').text.lower().replace('(group)','').strip()
-            bbox = obj.find('bndbox')
 
+            bbox = obj.find('bndbox')
             pts = ['xmin', 'ymin', 'xmax', 'ymax']
             bndbox = []
             for i, pt in enumerate(pts):
-                cur_pt = int(bbox.find(pt).text)
+                cur_pt = float(bbox.find(pt).text)
                 bndbox.append(cur_pt)
+            for i, pt in enumerate([width, height, width, height]):
+                bndbox[i] /= pt
+
+            name = obj.find('name').text.lower().replace('(group)','').strip()
             label_idx = self.class_to_ind[name]
             bndbox.append(label_idx)
             res = np.vstack((res,bndbox))  # [xmin, ymin, xmax, ymax, label_ind]
@@ -56,12 +60,12 @@ class VOCDetection(data.Dataset):
 
     """ VOC Detection Dataset Object """
 
-    def __init__(self, image_sets, size, dataset_name='VOC0712'):
-        self.root = VOCroot
+    def __init__(self, image_sets, size, dataset_name='VOC0712', cache=True):
+        self.root = os.path.join('datasets/', 'VOCdevkit/')
         self.image_set = image_sets
         self.size = size
         self.target_transform = AnnotationTransform()
-        self.name = dataset_name
+        self.name = dataset_name+str(image_sets)
         self.num_classes = len(self.pull_classes())
         self._annopath = os.path.join('%s', 'Annotations', '%s.xml')
         self._imgpath = os.path.join('%s', 'JPEGImages', '%s.jpg')
@@ -71,14 +75,19 @@ class VOCDetection(data.Dataset):
             rootpath = os.path.join(self.root, 'VOC' + year)
             for line in open(os.path.join(rootpath, 'ImageSets', 'Main', name + '.txt')):
                 self.ids.append((rootpath, line.strip()))
+        if cache:
+            self._cache_images()
 
     def pull_classes(self):
         return VOC_CLASSES
 
     def __getitem__(self, index):
         img_id = self.ids[index]
+        if self.imgs is not None:
+            img = self.imgs[index].copy()
+        else:
+            img = self.pull_image(index)
         target = self.pull_anno(index)
-        img = self.pull_image(index)
         img, target = preproc_for_train(img, target, self.size)
         return img, target
 
@@ -90,9 +99,47 @@ class VOCDetection(data.Dataset):
         target = ET.parse(self._annopath % img_id).getroot()
         return self.target_transform(target)
 
-    def pull_image(self, index):
+    def pull_image(self, index, resize=False):
         img_id = self.ids[index]
-        return cv2.imread(self._imgpath % img_id, cv2.IMREAD_COLOR)
+        image = cv2.imread(self._imgpath % img_id, cv2.IMREAD_COLOR)
+        if resize:
+            image = cv2.resize(image, (self.size, self.size), interpolation=cv2.INTER_LINEAR)
+        return image
+
+    def _cache_images(self):
+        cache_file = self.root + "/img_resized_cache_" + self.name + ".array"
+        if not os.path.exists(cache_file):
+            print(
+                "Caching images for the first time..."
+            )
+            self.imgs = np.memmap(
+                cache_file,
+                shape=(len(self.ids), self.size, self.size, 3),
+                dtype=np.uint8,
+                mode="w+",
+            )
+            from tqdm import tqdm
+            from multiprocessing.pool import ThreadPool
+
+            NUM_THREADs = min(8, os.cpu_count())
+            loaded_images = ThreadPool(NUM_THREADs).imap(
+                lambda x: self.pull_image(x, resize=True),
+                range(len(self.ids)),
+            )
+            pbar = tqdm(enumerate(loaded_images), total=len(self.ids))
+            for k, out in pbar:
+                self.imgs[k] = out.copy()
+            self.imgs.flush()
+            pbar.close()
+        
+        print("Loading cached imgs...")
+        self.imgs = np.memmap(
+            cache_file,
+            shape=(len(self.ids), self.size, self.size, 3),
+            dtype=np.uint8,
+            mode="r+",
+        )
+
 
     def evaluate_detections(self, all_boxes):
         output_dir = os.path.join(self.root, 'eval')
@@ -166,18 +213,4 @@ class VOCDetection(data.Dataset):
             if output_dir is not None:
                 with open(os.path.join(output_dir, cls + '_pr.pkl'), 'wb') as f:
                     pickle.dump({'rec': rec, 'prec': prec, 'ap': ap}, f)
-        #print('Thresh = {:.4f} Mean AP = {:.4f}'.format(thresh, np.mean(aps)))
-        """print('~~~~~~~~')
-        print('Results:')
-        for ap in aps:
-            print('{:.3f}'.format(ap))
-        print('{:.3f}'.format(np.mean(aps)))
-        print('~~~~~~~~')
-        print('')
-        print('--------------------------------------------------------------')
-        print('Results computed with the **unofficial** Python eval code.')
-        print('Results should be very close to the official MATLAB eval code.')
-        print('Recompute with `./tools/reval.py --matlab ...` for your paper.')
-        print('-- Thanks, The Management')
-        print('--------------------------------------------------------------')"""
         return np.mean(aps)
