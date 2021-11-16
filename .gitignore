@@ -21,3 +21,4 @@ run*
 *2.py
 datasets/VOCdevkit
 datasets/coco2017
+weekend.sh

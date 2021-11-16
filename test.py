@@ -59,7 +59,7 @@ if __name__ == '__main__':
         testset = COCODetection([('2017', 'val')], args.size, cache=False)
     elif args.dataset == 'XML':
         from data import XMLDetection
-        testset = XMLDetection('val', args.size)
+        testset = XMLDetection('val', args.size, cache=False)
     else:
         raise NotImplementedError('Unkown dataset {}!'.format(args.dataset))
 

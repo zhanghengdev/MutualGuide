@@ -34,7 +34,7 @@ XML_CLASSES = ( '__background__', # always index 0
 
 
 class XMLDetection(data.Dataset):
-    def __init__(self, image_sets, size):
+    def __init__(self, image_sets, size, cache=True):
         self.root = XMLroot
         self.image_set = image_sets
         self.size = size
@@ -44,18 +44,24 @@ class XMLDetection(data.Dataset):
         self._imgpath = os.path.join(self.root, 'JPEGImages', '%s.jpg')
         self.num_classes = len(self.pull_classes())
         self.ids = list()
-        self.name = os.path.join(self.root, self.image_set + '.txt')
-        for line in open(self.name):
+        self.name = 'XML-'+str(self.image_set)
+        self.file_name = os.path.join(self.root, self.image_set + '.txt')
+        for line in open(self.file_name):
             self.ids.append(line.strip())
-        print('Using custom dataset. Reading {}...'.format(self.name))
+        print('Using custom dataset. Reading {}...'.format(self.file_name))
+        if cache:
+            self._cache_images()
 
     def pull_classes(self):
         return self.classes
 
     def __getitem__(self, index):
         img_id = self.ids[index]
+        if self.imgs is not None:
+            img = self.imgs[index].copy()
+        else:
+            img = self.pull_image(index)
         target = self.pull_anno(index)
-        img = self.pull_image(index)
         img, target = preproc_for_train(img, target, self.size)
         return img, target
 
@@ -83,9 +89,46 @@ class XMLDetection(data.Dataset):
             res = np.vstack((res,bndbox))
         return res
 
-    def pull_image(self, index):
+    def pull_image(self, index, resize=False):
         img_id = self.ids[index]
-        return cv2.imread(self._imgpath % img_id, cv2.IMREAD_COLOR)
+        image = cv2.imread(self._imgpath % img_id, cv2.IMREAD_COLOR)
+        if resize:
+            image = cv2.resize(image, (self.size, self.size), interpolation=cv2.INTER_LINEAR)
+        return image
+
+    def _cache_images(self):
+        cache_file = self.root + "/img_resized_cache_" + self.name + ".array"
+        if not os.path.exists(cache_file):
+            print(
+                "Caching images for the first time..."
+            )
+            self.imgs = np.memmap(
+                cache_file,
+                shape=(len(self.ids), self.size, self.size, 3),
+                dtype=np.uint8,
+                mode="w+",
+            )
+            from tqdm import tqdm
+            from multiprocessing.pool import ThreadPool
+
+            NUM_THREADs = min(8, os.cpu_count())
+            loaded_images = ThreadPool(NUM_THREADs).imap(
+                lambda x: self.pull_image(x, resize=True),
+                range(len(self.ids)),
+            )
+            pbar = tqdm(enumerate(loaded_images), total=len(self.ids))
+            for k, out in pbar:
+                self.imgs[k] = out.copy()
+            self.imgs.flush()
+            pbar.close()
+        
+        print("Loading cached imgs...")
+        self.imgs = np.memmap(
+            cache_file,
+            shape=(len(self.ids), self.size, self.size, 3),
+            dtype=np.uint8,
+            mode="r+",
+        )
 
     def evaluate_detections(self, all_boxes):
         results = []
