@@ -6,7 +6,48 @@ import numpy as np
 import random
 import math
 import torch
+from PIL import Image
 
+def _gridmask(
+    image: np.ndarray, 
+    boxes: np.ndarray, 
+    ratio: float = 0.5, 
+    rotate: int = 1, 
+    img_mean: float = 114.0, 
+    p: float = 0.7, 
+) -> np.ndarray:
+
+    if random.random() > p:
+        return (image, boxes)
+
+    (height, width, depth) = image.shape
+    hh = int(1.5*height)
+    ww = int(1.5*width)
+    d1 = 2
+    d2 = max(np.min(boxes[:,2:]-boxes[:,:2]) * min(height, width), d1+1)
+    d = np.random.randint(d1, d2)
+    l = min(max(int(d*ratio+0.5),1),d-1)
+    mask = np.ones((hh, ww), np.float32)
+    st_h = np.random.randint(d)
+    st_w = np.random.randint(d)
+    for i in range(hh//d):
+        s = d*i + st_h
+        t = min(s+l, hh)
+        mask[s:t,:] *= 0
+    for i in range(ww//d):
+        s = d*i + st_w
+        t = min(s+l, ww)
+        mask[:,s:t] *= 0
+   
+    r = np.random.randint(rotate)
+    mask = Image.fromarray(np.uint8(mask))
+    mask = mask.rotate(r)
+    mask = np.asarray(mask)
+    mask = mask[(hh-height)//2:(hh-height)//2+height, (ww-width)//2:(ww-width)//2+width]
+    mask = np.dstack((mask, mask, mask)) 
+    image = image * (1. - mask) + img_mean * mask
+
+    return (image, boxes)
 
 def _crop_expand(
     image: np.ndarray, 
@@ -177,6 +218,7 @@ def preproc_for_train(
     labels = targets[:, -1].copy()
 
     image = _distort(image)
+    (image, boxes) = _gridmask(image, boxes)
     (image, boxes, labels) = _crop_expand(image, boxes, labels)
     (image, boxes) = _mirror(image, boxes)
 
