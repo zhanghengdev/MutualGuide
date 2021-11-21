@@ -23,9 +23,7 @@ def _gridmask(
     (height, width, depth) = image.shape
     hh = int(1.5*height)
     ww = int(1.5*width)
-    d1 = 2
-    d2 = max(np.min(boxes[:,2:]-boxes[:,:2]) * min(height, width), d1+1)
-    d = np.random.randint(d1, d2)
+    d = np.random.randint(2, height)
     l = min(max(int(d*ratio+0.5),1),d-1)
     mask = np.ones((hh, ww), np.float32)
     st_h = np.random.randint(d)
