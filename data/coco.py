@@ -170,7 +170,7 @@ class COCODetection(data.Dataset):
         img_id = self.ids[index]
         target = self.annotations[index]
         if self.imgs is not None:
-            img = self.imgs[index]()
+            img = self.imgs[index].copy()
         else:
             img = self.pull_image(index)
         img, target = preproc_for_train(img, target, self.size)
