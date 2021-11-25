@@ -172,6 +172,25 @@ def _distort(
 
     return image
 
+def _augment_hsv(
+    image: np.ndarray, 
+    hgain: int =5, 
+    sgain: int = 30, 
+    vgain: int = 30,
+) -> np.ndarray:
+
+    hsv_augs = np.random.uniform(-1, 1, 3) * [hgain, sgain, vgain]  # random gains
+    hsv_augs *= np.random.randint(0, 2, 3)  # random selection of h, s, v
+    hsv_augs = hsv_augs.astype(np.int16)
+    img_hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV).astype(np.int16)
+
+    img_hsv[..., 0] = (img_hsv[..., 0] + hsv_augs[0]) % 180
+    img_hsv[..., 1] = np.clip(img_hsv[..., 1] + hsv_augs[1], 0, 255)
+    img_hsv[..., 2] = np.clip(img_hsv[..., 2] + hsv_augs[2], 0, 255)
+
+    image = cv2.cvtColor(img_hsv.astype(image.dtype), cv2.COLOR_HSV2BGR)
+
+    return image
 
 def _mirror(
     image: np.ndarray, 
@@ -215,7 +234,8 @@ def preproc_for_train(
     boxes = targets[:, :-1].copy()
     labels = targets[:, -1].copy()
 
-    image = _distort(image)
+    # image = _distort(image)
+    image = _augment_hsv(image)
     (image, boxes) = _gridmask(image, boxes)
     (image, boxes, labels) = _crop_expand(image, boxes, labels)
     (image, boxes) = _mirror(image, boxes)
