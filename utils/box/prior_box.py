@@ -9,19 +9,17 @@ from math import sqrt as sqrt
 from itertools import product as product
 
 
-def PriorBox(base_anchor, size, base_size, multi_anchor=True, multi_level=True):
+def PriorBox(base_anchor, size, base_size, multi_anchor=True):
     """Predefined anchor boxes"""
     
-    if not multi_level:
-        feature_map = [math.ceil(size / 2 ** 4)]
+    if base_size == 320:
+        repeat = 4
+    elif base_size == 512:
+        repeat = 5
     else:
-        if base_size == 320:
-            repeat = 4
-        elif base_size == 512:
-            repeat = 5
-        else:
-            raise ValueError('Error: Sorry size {} is not supported!'.format(base_size))
-        feature_map = [math.ceil(size / 2 ** (3 + i)) for i in range(repeat)]
+        raise ValueError('Error: Sorry size {} is not supported!'.format(base_size))
+    
+    feature_map = [math.ceil(size / 2 ** (3 + i)) for i in range(repeat)]
 
     mean = []
     for (k, (f_h, f_w)) in enumerate(zip(feature_map, feature_map)):

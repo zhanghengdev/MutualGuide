@@ -35,7 +35,6 @@ parser.add_argument('--neck', default='pafpn')
 parser.add_argument('--backbone', default='resnet18')
 parser.add_argument('--dataset', default='COCO')
 parser.add_argument('--multi_anchor', action='store_true')
-parser.add_argument('--multi_level', action='store_true')
 parser.add_argument('--seq_matcher', action='store_true')
 parser.add_argument('--base_anchor_size', default=24.0, type=float)
 parser.add_argument('--size', default=320, type=int)
@@ -66,7 +65,7 @@ if __name__ == '__main__':
     print('Loading Network...')
     from models.teacher_detector import Detector
     model = Detector(args.size, testset.num_classes, args.backbone, args.neck,
-        multi_anchor=args.multi_anchor, multi_level=args.multi_level).cuda()
+        multi_anchor=args.multi_anchor).cuda()
     
     print('Loading weights from', args.trained_model)
     state_dict = torch.load(args.trained_model)
@@ -86,7 +85,7 @@ if __name__ == '__main__':
 
     print('Preparing AnchorBoxes...')
     priors = PriorBox(args.base_anchor_size, args.size, base_size=args.size, 
-        multi_anchor=args.multi_anchor, multi_level=args.multi_level).cuda()
+        multi_anchor=args.multi_anchor).cuda()
 
     print('Evaluating model complexity...')
     from ptflops import get_model_complexity_info

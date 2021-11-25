@@ -41,7 +41,6 @@ parser.add_argument('--backbone', default='resnet18')
 parser.add_argument('--dataset', default='COCO')
 parser.add_argument('--save_folder', default='weights/')
 parser.add_argument('--multi_anchor', action='store_true')
-parser.add_argument('--multi_level', action='store_true')
 parser.add_argument('--mutual_guide', action='store_true')
 parser.add_argument('--base_anchor_size', default=24.0, type=float)
 parser.add_argument('--size', default=320, type=int)
@@ -78,17 +77,18 @@ if __name__ == '__main__':
     print('Loading Optimizer & Network & Criterion...')
     from models.teacher_detector import Detector
     model = Detector(args.size, dataset.num_classes, args.backbone, args.neck,
-        multi_anchor=args.multi_anchor, multi_level=args.multi_level).cuda()
+        multi_anchor=args.multi_anchor).cuda()
     optimizer = optim.SGD(tencent_trick(model), lr=args.lr, momentum=0.9, weight_decay=0.0005)
     model, optimizer = amp.initialize(model, optimizer, opt_level="O1")
     ema_model = ModelEMA(model)
+    print(model)
     num_param = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print('Total param is : {:e}'.format(num_param))
 
     print('Preparing Criterion & AnchorBoxes...')
     criterion = MultiBoxLoss(mutual_guide=args.mutual_guide)
     priors = PriorBox(args.base_anchor_size, args.size, base_size=args.size, 
-        multi_anchor=args.multi_anchor, multi_level=args.multi_level).cuda()
+        multi_anchor=args.multi_anchor).cuda()
 
     print('Training {}-{}-{} on {} with {} images'.format(
         'retina' if args.multi_anchor else 'fcos', 
@@ -101,7 +101,8 @@ if __name__ == '__main__':
 
             # create batch iterator
             rand_loader = data.DataLoader(
-                dataset, args.batch_size, shuffle=True, num_workers=4, collate_fn=detection_collate
+                dataset, args.batch_size, shuffle=True, num_workers=4, 
+                collate_fn=detection_collate,
             )
             prefetcher = DataPrefetcher(rand_loader)
             model.train()
@@ -122,7 +123,7 @@ if __name__ == '__main__':
                 images, size=(new_size, new_size), mode="bilinear", align_corners=False
             )
         priors = PriorBox(args.base_anchor_size, new_size, base_size=args.size, 
-            multi_anchor=args.multi_anchor, multi_level=args.multi_level).cuda()
+            multi_anchor=args.multi_anchor).cuda()
 
         out = model.forward_test(images)
         (loss_l, loss_c) = criterion(out, priors, targets)

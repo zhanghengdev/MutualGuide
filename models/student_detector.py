@@ -31,16 +31,13 @@ def multibox(fpn_level, num_anchors, num_classes, fea_channel, conv_block):
 
 class Detector(nn.Module):
 
-    def __init__(self, base_size, num_classes, backbone, neck, multi_anchor=True, multi_level=True):
+    def __init__(self, base_size, num_classes, backbone, neck, multi_anchor=True):
         super(Detector, self).__init__()
 
         # Params
         self.num_classes = num_classes - 1
         self.num_anchors = 6 if multi_anchor else 1
-        if multi_level:
-            self.fpn_level = (4 if base_size < 512 else 5)
-        else:
-            self.fpn_level = 1
+        self.fpn_level = 4 if base_size < 512 else 5
 
         # Backbone network
         if backbone == 'resnet18':
@@ -78,21 +75,14 @@ class Detector(nn.Module):
 
         # Neck network
         if neck == 'ssd':
-            assert multi_level
             from models.neck.ssd_neck import SSDNeck
             self.neck = SSDNeck(self.fpn_level, channels, self.fea_channel, self.conv_block)
         elif neck == 'fpn':
-            assert multi_level
             from models.neck.fpn_neck import FPNNeck
             self.neck = FPNNeck(self.fpn_level, channels, self.fea_channel, self.conv_block)
         elif neck == 'pafpn':
-            assert multi_level
             from models.neck.pafpn_neck import PAFPNNeck
             self.neck = PAFPNNeck(self.fpn_level, channels, self.fea_channel, self.conv_block)
-        elif neck == 'yolof':
-            assert not multi_level
-            from models.neck.yolof_neck import YOLOFNeck
-            self.neck = YOLOFNeck(channels, self.fea_channel, self.conv_block)
         else:
             raise ValueError('Error: Sorry neck {} is not supported!'.format(neck))
 

@@ -41,7 +41,6 @@ parser.add_argument('--backbone', default='resnet18')
 parser.add_argument('--dataset', default='COCO')
 parser.add_argument('--save_folder', default='weights/')
 parser.add_argument('--multi_anchor', action='store_true')
-parser.add_argument('--multi_level', action='store_true')
 parser.add_argument('--mutual_guide', action='store_true')
 parser.add_argument('--base_anchor_size', default=24.0, type=float)
 parser.add_argument('--size', default=320, type=int)
@@ -79,7 +78,7 @@ if __name__ == '__main__':
     print('Loading student Network...')
     from models.student_detector import Detector
     model = Detector(args.size, dataset.num_classes, args.backbone, args.neck,
-        multi_anchor=args.multi_anchor, multi_level=args.multi_level).cuda()
+        multi_anchor=args.multi_anchor).cuda()
     num_param = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print('Total param of student model is : {:e}'.format(num_param))
 
@@ -97,7 +96,7 @@ if __name__ == '__main__':
     neck = 'pafpn'
     from models.teacher_detector import Detector
     teacher = Detector(args.size, dataset.num_classes, backbone, neck,
-        multi_anchor=args.multi_anchor, multi_level=args.multi_level).cuda()
+        multi_anchor=args.multi_anchor).cuda()
     trained_model = 'weights/{}_{}_{}_{}_size{}_anchor{}_MG.pth'.format(
             args.dataset, 'retina' if args.multi_anchor else 'fcos', neck, backbone, args.size, args.base_anchor_size)
     print('loading weights from', trained_model)
@@ -114,7 +113,7 @@ if __name__ == '__main__':
     criterion_det = MultiBoxLoss(mutual_guide=args.mutual_guide)
     criterion_kd = HintLoss(args.kd)
     priors = PriorBox(args.base_anchor_size, args.size, base_size=args.size, 
-        multi_anchor=args.multi_anchor, multi_level=args.multi_level).cuda()
+        multi_anchor=args.multi_anchor).cuda()
 
     print('Training {}-{}-{} on {} with {} images'.format(
         'retina' if args.multi_anchor else 'fcos', 
@@ -127,7 +126,8 @@ if __name__ == '__main__':
 
             # create batch iterator
             rand_loader = data.DataLoader(
-                dataset, args.batch_size, shuffle=True, num_workers=4, collate_fn=detection_collate
+                dataset, args.batch_size, shuffle=True, num_workers=4, 
+                collate_fn=detection_collate,
             )
             prefetcher = DataPrefetcher(rand_loader)
             model.train()
@@ -148,7 +148,7 @@ if __name__ == '__main__':
                 images, size=(new_size, new_size), mode="bilinear", align_corners=False
             )
         priors = PriorBox(args.base_anchor_size, new_size, base_size=args.size, 
-            multi_anchor=args.multi_anchor, multi_level=args.multi_level).cuda()
+            multi_anchor=args.multi_anchor).cuda()
 
         with torch.no_grad():
             out_t = teacher(images)
