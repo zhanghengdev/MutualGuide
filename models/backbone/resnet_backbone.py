@@ -142,3 +142,4 @@ class ResNetBackbone(nn.Module):
         out2 = self.layer4(out1)
 
         return out1, out2
+

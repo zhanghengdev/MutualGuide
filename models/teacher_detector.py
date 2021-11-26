@@ -37,7 +37,13 @@ class Detector(nn.Module):
         self.fpn_level = 4 if base_size < 512 else 5
         
         # Backbone network
-        if backbone == 'resnet18':
+        if backbone == 'swin-T':
+            from models.backbone.swin_backbone import SwinTransformerBackbone
+            self.backbone = SwinTransformerBackbone()
+            channels = (192,384,768)
+            self.fea_channel = 256
+            self.conv_block = BasicConv
+        elif backbone == 'resnet18':
             from models.backbone.resnet_backbone import ResNetBackbone
             self.backbone = ResNetBackbone(depth=18)
             channels = (256, 512)

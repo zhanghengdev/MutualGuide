@@ -234,8 +234,8 @@ def preproc_for_train(
     boxes = targets[:, :-1].copy()
     labels = targets[:, -1].copy()
 
-    # image = _distort(image)
-    image = _augment_hsv(image)
+    image = _distort(image)
+    # image = _augment_hsv(image)
     (image, boxes) = _gridmask(image, boxes)
     (image, boxes, labels) = _crop_expand(image, boxes, labels)
     (image, boxes) = _mirror(image, boxes)
