@@ -1,23 +1,23 @@
 <img align="center" src="https://github.com/zhangheng19931123/MutualGuide/blob/master/doc/mg.svg">
 
-# Introduction
+## Introduction
 MutualGuide is a compact object detector specially designed for embedded devices. Comparing to existing detectors, this repo contains two key features. 
 
 Firstly, the Mutual Guidance mecanism assigns labels to the classification task based on the prediction on the localization task, and vice versa, alleviating the misalignment problem between both tasks; Secondly, the teacher-student prediction disagreements guides the knowledge transfer in a feature-based detection distillation framework, thereby reducing the performance gap between both models.
 
 For more details, please refer to our [ACCV paper](https://openaccess.thecvf.com/content/ACCV2020/html/Zhang_Localize_to_Classify_and_Classify_to_Localize_Mutual_Guidance_in_ACCV_2020_paper.html) and [BMVC paper](https://www.bmvc2021.com/).
 
-# Planning
+## Planning
 - [x] Add [RepVGG](https://arxiv.org/abs/2101.03697) backbone.
 - [x] Add [RegNet](https://arxiv.org/abs/2003.13678) backbone.
 - [x] Add [ShuffleNetV2](https://arxiv.org/abs/1807.11164) backbone.
+- [x] Add [SwinTransformer](https://arxiv.org/abs/2103.14030) backbone.
 - [x] Add **TensorRT** transform code for inference acceleration.
 - [x] Add **draw** function to plot detection results.
 - [x] Add **custom dataset** training (annotations in `XML` format).
-- [ ] Add [SwinTransformer](https://arxiv.org/abs/2103.14030) backbone.
 
 
-# Benchmark
+## Benchmark
 
 - Without knowledge distillation:
 
@@ -25,7 +25,7 @@ For more details, please refer to our [ACCV paper](https://openaccess.thecvf.com
 | **Backbone** | **Resolution** | **AP<sup>val**<br>0.5:0.95 | **AP<sup>val**<br>0.5 | **AP<sup>val**<br>0.75 | **AP<sup>val**<br>small | **AP<sup>val**<br>medium | **AP<sup>val**<br>large | **Speed V100**<br>(ms) |
 |:------------:|:--------------:|:--------------------------:|:---------------------:|:----------------------:|:-----------------------:|:------------------------:|:-----------------------:|:----------------------:|
 | ShuffleNet-1.0 | 320x320      | 29.3 | 45.4 | 30.5 | 12.0 | 33.2 | 43.9 | 8 |
-| ResNet-18      | 512x512      | 42.0 | 60.0 | 45.3 | 25.4 | 47.1 | 56.0 | 12 |
+| ResNet-18(new) | 512x512      | 43.0 | 61.8 | 46.3 | 26.7 | 47.9 | 56.4 | 12 |
 | ResNet-34      | 512x512      | 44.1 | 62.3 | 47.6 | 26.5 | 50.2 | 58.3 | 16 |
 | RepVGG-A1      | 512x512      | 43.1 | 61.3 | 46.6 | 26.6 | 49.3 | 55.9 | 12 |
 | RepVGG-A2      | 512x512      | 44.2 | 62.5 | 47.5 | 27.2 | 50.3 | 57.2 | 18 |
@@ -49,7 +49,7 @@ For more details, please refer to our [ACCV paper](https://openaccess.thecvf.com
 
 
 
-# Datasets
+## Datasets
 
 First download the VOC and COCO dataset, you may find the sripts in `data/scripts/` helpful.
 Then create a folder named `datasets` and link the downloaded datasets inside:
@@ -63,7 +63,7 @@ $ ln -s /path_to_your_coco_dataset datasets/coco2017
 
 - For training on custom dataset, first modify the dataset path `XMLroot` and categories `XML_CLASSES` in `data/xml_dataset.py`. Then apply `--dataset XML`.
 
-# Training
+## Training
 
 For training with [Mutual Guide](https://openaccess.thecvf.com/content/ACCV2020/html/Zhang_Localize_to_Classify_and_Classify_to_Localize_Mutual_Guidance_in_ACCV_2020_paper.html):
 ```Shell
@@ -90,7 +90,7 @@ $ python3 distil.py --neck ssd --backbone vgg11    --dataset VOC --size 320 --mu
 - For knowledge distillation with traditional MSE loss, just use parameter `--kd mse`;
 - The default folder to save trained model is `weights/`.
 
-# Evaluation
+## Evaluation
 
 Every time you want to evaluate a trained network:
 ```Shell
@@ -106,7 +106,7 @@ $ python3 test.py --neck ssd --backbone vgg11    --dataset VOC --size 320 --trai
 - Add parameter `--draw` to draw detection results. They will be saved in `draw/VOC/` or `draw/COCO/` or `draw/XML/`;
 - Add `--trt` to activate TensorRT acceleration.
 
-# Citing us
+## Citing us
 
 Please cite our papers in your publications if they help your research:
 
@@ -126,6 +126,6 @@ Please cite our papers in your publications if they help your research:
         year      = {2021}
     }
 
-# Acknowledgement
+## Acknowledgement
 
 This project contains pieces of code from the following projects: [mmdetection](https://github.com/open-mmlab/mmdetection), [ssd.pytorch](https://github.com/amdegroot/ssd.pytorch), [rfbnet](https://github.com/ruinmessi/RFBNet) and [yolox](https://github.com/Megvii-BaseDetection/YOLOX).
