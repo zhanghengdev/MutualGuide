@@ -468,7 +468,7 @@ class SwinTransformerBackbone(nn.Module):
     def load_pre_trained_weights(self):
         print('Loading Pytorch pretrained weights...')
         pretrained_dict = {
-            'T': '/home/hengzhang/Documents/MutualGuide/weights/TorchPretrained/swin_tiny_patch4_window7_224.pth',
+            'T': 'weights/TorchPretrained/swin_tiny_patch4_window7_224.pth',
         }
         pretrained_dict = torch.load(pretrained_dict[self.version])
         self.load_state_dict(pretrained_dict['model'], strict=False)

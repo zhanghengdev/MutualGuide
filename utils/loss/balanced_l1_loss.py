@@ -13,14 +13,12 @@ class BalancedL1Loss(nn.Module):
         self.gamma = gamma
         self.beta = beta
 
-    def forward(self, pred, target, reduction='mean'):
+    def forward(self, pred, target, weights=None):
         diff = torch.abs(pred - target)
         b = np.e ** (self.gamma / self.alpha) - 1
         loss = torch.where(diff < self.beta, self.alpha / b * (b * diff + 1) * torch.log(b * diff / self.beta + 1) - self.alpha * diff, self.gamma * diff + self.gamma / b - self.alpha * self.beta)
-        if reduction == 'sum':
-            return loss.sum()
-        elif reduction == 'mean':
+        if weights is None:
             return loss.mean()
         else:
-            return loss
+            return (loss * weights).sum()
 

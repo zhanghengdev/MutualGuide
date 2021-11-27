@@ -49,11 +49,17 @@ class MultiBoxLoss(nn.Module):
             pos = pred_t >= 3.0
             priors = priors.unsqueeze(0).expand_as(loc_data)
             mask = pos.unsqueeze(-1).expand_as(loc_data)
+
+
+            weights = (pred_t-3.0).relu().unsqueeze(-1).expand_as(loc_data)
+            weights = weights[mask].view(-1, 4)
+            weights = weights / weights.sum()
+
             loc_p = loc_data[mask].view(-1, 4)
             loc_t = loc_t[mask].view(-1, 4)
             priors = priors[mask].view(-1, 4)
             # loss_l = self.iou_loss(decode(loc_p, priors), loc_t)
-            loss_l = self.l1_loss(loc_p, encode(loc_t, priors))
+            loss_l = self.l1_loss(loc_p, encode(loc_t, priors), weights=weights)
 
             # Classification Loss
             neg = overlap_t <= 1.0
