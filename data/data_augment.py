@@ -8,44 +8,6 @@ import math
 import torch
 from PIL import Image
 
-def _gridmask(
-    image: np.ndarray, 
-    boxes: np.ndarray, 
-    ratio: float = 0.5, 
-    rotate: int = 1, 
-    img_mean: float = 114.0, 
-    p: float = 0.7, 
-) -> np.ndarray:
-
-    if random.random() > p:
-        return (image, boxes)
-
-    (height, width, depth) = image.shape
-    hh = int(1.5*height)
-    ww = int(1.5*width)
-    d = np.random.randint(2, height)
-    l = min(max(int(d*ratio+0.5),1),d-1)
-    mask = np.ones((hh, ww), np.float32)
-    st_h = np.random.randint(d)
-    st_w = np.random.randint(d)
-    for i in range(hh//d):
-        s = d*i + st_h
-        t = min(s+l, hh)
-        mask[s:t,:] *= 0
-    for i in range(ww//d):
-        s = d*i + st_w
-        t = min(s+l, ww)
-        mask[:,s:t] *= 0
-   
-    r = np.random.randint(rotate)
-    mask = Image.fromarray(np.uint8(mask))
-    mask = mask.rotate(r)
-    mask = np.asarray(mask)
-    mask = mask[(hh-height)//2:(hh-height)//2+height, (ww-width)//2:(ww-width)//2+width]
-    mask = np.dstack((mask, mask, mask)) 
-    image = image * (1. - mask) + img_mean * mask
-
-    return (image, boxes)
 
 def _crop_expand(
     image: np.ndarray, 
@@ -172,25 +134,6 @@ def _distort(
 
     return image
 
-def _augment_hsv(
-    image: np.ndarray, 
-    hgain: int =5, 
-    sgain: int = 30, 
-    vgain: int = 30,
-) -> np.ndarray:
-
-    hsv_augs = np.random.uniform(-1, 1, 3) * [hgain, sgain, vgain]  # random gains
-    hsv_augs *= np.random.randint(0, 2, 3)  # random selection of h, s, v
-    hsv_augs = hsv_augs.astype(np.int16)
-    img_hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV).astype(np.int16)
-
-    img_hsv[..., 0] = (img_hsv[..., 0] + hsv_augs[0]) % 180
-    img_hsv[..., 1] = np.clip(img_hsv[..., 1] + hsv_augs[1], 0, 255)
-    img_hsv[..., 2] = np.clip(img_hsv[..., 2] + hsv_augs[2], 0, 255)
-
-    image = cv2.cvtColor(img_hsv.astype(image.dtype), cv2.COLOR_HSV2BGR)
-
-    return image
 
 def _mirror(
     image: np.ndarray, 
@@ -235,8 +178,6 @@ def preproc_for_train(
     labels = targets[:, -1].copy()
 
     image = _distort(image)
-    # image = _augment_hsv(image)
-    (image, boxes) = _gridmask(image, boxes)
     (image, boxes, labels) = _crop_expand(image, boxes, labels)
     (image, boxes) = _mirror(image, boxes)
 
@@ -262,5 +203,4 @@ def detection_collate(
                 annos = torch.from_numpy(tup).float()
                 annos.requires_grad = False
                 targets.append(annos)
-
     return (torch.stack(imgs, 0), targets)

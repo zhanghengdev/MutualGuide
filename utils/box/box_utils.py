@@ -55,7 +55,8 @@ def mutual_match(truths, priors, regress, classif, labels, loc_t, conf_t, overla
     reg_overlaps = jaccard(truths, decode(regress, priors))
     pred_classifs = jaccard(truths, point_form(priors))
     classif = classif.sigmoid().t()[labels - 1, :]
-    pred_classifs = pred_classifs ** ((sigma - classif + 1e-6) / sigma)
+    # pred_classifs = pred_classifs ** ((sigma - classif + 1e-6) / sigma)
+    pred_classifs = (pred_classifs * torch.exp(classif / sigma)).clamp_(max=1, min=0)
     reg_overlaps[reg_overlaps != reg_overlaps.max(dim=0, keepdim=True)[0]] = 0.0
     pred_classifs[pred_classifs != pred_classifs.max(dim=0, keepdim=True)[0]] = 0.0
 

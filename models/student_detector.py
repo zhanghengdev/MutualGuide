@@ -16,12 +16,13 @@ def multibox(fpn_level, num_anchors, num_classes, fea_channel, conv_block):
     for _ in range(fpn_level):
         loc_layer = nn.Sequential(
             conv_block(fea_channel, fea_channel, 3, padding=1),
-            nn.Conv2d(fea_channel, loc_channel, kernel_size=3, padding=1)
-            )
+            conv_block(fea_channel, fea_channel, 3, padding=1),
+            nn.Conv2d(fea_channel, loc_channel, 1),            )
         loc_layers.append(loc_layer)
         conf_layer = nn.Sequential(
             conv_block(fea_channel, fea_channel, 3, padding=1),
-            nn.Conv2d(fea_channel, cls_channel, kernel_size=3, padding=1)
+            conv_block(fea_channel, fea_channel, 3, padding=1),
+            nn.Conv2d(fea_channel, cls_channel, 1)
             )
         conf_layers.append(conf_layer)
         dist_layer = nn.Conv2d(fea_channel, dis_channel, kernel_size=3, padding=1)

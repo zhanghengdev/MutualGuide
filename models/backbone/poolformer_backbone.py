@@ -200,7 +200,7 @@ class PoolFormerBackbone(nn.Module):
     def __init__(self,
                  pool_size=3, 
                  norm_layer=GroupNorm, act_layer=nn.GELU, 
-                 in_patch_size=7, in_stride=2, in_pad=3, 
+                 in_patch_size=7, in_stride=4, in_pad=2, 
                  down_patch_size=3, down_stride=2, down_pad=1, 
                  drop_rate=0., drop_path_rate=0.,
                  use_layer_scale=True, layer_scale_init_value=1e-5, 
@@ -243,9 +243,9 @@ class PoolFormerBackbone(nn.Module):
 
         self.network = nn.ModuleList(network)
 
-        self.out_indices = [4, 6]
+        self.out_indices = [2, 4, 6]
         for i_emb, i_layer in enumerate(self.out_indices):
-            layer = norm_layer(embed_dims[i_emb+2])
+            layer = norm_layer(embed_dims[i_emb+1])
             layer_name = f'norm{i_layer}'
             self.add_module(layer_name, layer)
 

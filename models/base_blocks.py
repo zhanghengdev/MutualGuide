@@ -13,7 +13,7 @@ class BasicConv(nn.Module):
         self.conv = nn.Conv2d(in_planes, out_planes, kernel_size=kernel_size, 
             stride=stride, padding=padding, dilation=dilation, groups=groups, bias=bias)
         self.bn = nn.BatchNorm2d(out_planes, eps=1e-5, momentum=0.01, affine=True) if bn else None
-        self.relu = nn.ReLU(inplace=True) if relu else None
+        self.relu = nn.LeakyReLU(0.1, inplace=True) if relu else None
 
     def forward(self, x):
         x = self.conv(x)

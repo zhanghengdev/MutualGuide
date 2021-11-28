@@ -28,7 +28,7 @@ class CEM(nn.Module):
             conv_block(channels[-1], fea_channel, kernel_size=1, relu=False),
         )
         self.add_module(layer_name, layer)
-        self.relu = nn.ReLU(inplace=True)
+        self.relu = nn.LeakyReLU(0.1, inplace=True)
 
     def forward(self, inputs):
         out = None

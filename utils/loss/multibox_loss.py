@@ -9,7 +9,6 @@ from ..box import match, mutual_match, encode, decode
 from .focal_loss import FocalLoss
 from .gfocal_loss import GFocalLoss
 from .balanced_l1_loss import BalancedL1Loss
-from .giou_loss import GIOULoss
 
 
 class MultiBoxLoss(nn.Module):
@@ -20,7 +19,6 @@ class MultiBoxLoss(nn.Module):
         self.focal_loss = FocalLoss()
         self.gfocal_loss = GFocalLoss()
         self.l1_loss = BalancedL1Loss()
-        self.iou_loss = GIOULoss()
         
     def forward(self, predictions, priors, targets):
         (loc_data, conf_data) = predictions['loc'], predictions['conf']
@@ -50,7 +48,6 @@ class MultiBoxLoss(nn.Module):
             priors = priors.unsqueeze(0).expand_as(loc_data)
             mask = pos.unsqueeze(-1).expand_as(loc_data)
 
-
             weights = (pred_t-3.0).relu().unsqueeze(-1).expand_as(loc_data)
             weights = weights[mask].view(-1, 4)
             weights = weights / weights.sum()
@@ -58,17 +55,18 @@ class MultiBoxLoss(nn.Module):
             loc_p = loc_data[mask].view(-1, 4)
             loc_t = loc_t[mask].view(-1, 4)
             priors = priors[mask].view(-1, 4)
-            # loss_l = self.iou_loss(decode(loc_p, priors), loc_t)
             loss_l = self.l1_loss(loc_p, encode(loc_t, priors), weights=weights)
 
             # Classification Loss
             neg = overlap_t <= 1.0
             conf_t[neg] = 0
+
             with torch.no_grad():
                 batch_label = torch.zeros(num * num_priors, num_classes + 1).cuda().scatter_(1, conf_t.view(-1, 1), 1)
                 batch_label = batch_label[:, 1:].view(num, num_priors, num_classes)  # shape: (batch_size, num_priors, num_classes)
                 score = (overlap_t-3.0).relu().unsqueeze(-1).expand_as(batch_label)
                 batch_label = batch_label * score
+
             loss_c = self.gfocal_loss(conf_data, batch_label)
             return (loss_l, loss_c)
 
