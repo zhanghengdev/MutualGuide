@@ -30,11 +30,7 @@ class FPNNeck(SSDNeck):
         self.fpn_convs = fpn_convs(self.fpn_level, fea_channel, conv_block)
         
     def forward(self, x):
-        x = self.ft_module(x)
-        fpn_fea = list()
-        for v in self.pyramid_ext:
-            x = v(x)
-            fpn_fea.append(x)
+        fpn_fea = super().forward(x)
         fpn_fea = [lateral_conv(x) for (x, lateral_conv) in zip(fpn_fea, self.lateral_convs)]
         for i in range(self.fpn_level - 1, 0, -1):
             fpn_fea[i - 1] = fpn_fea[i - 1] + F.interpolate(fpn_fea[i], scale_factor=2.0, mode='nearest')
