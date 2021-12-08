@@ -12,7 +12,6 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.backends.cudnn as cudnn
-from torch.autograd import Variable
 import torch.utils.data as data
 from apex import amp
 from data import detection_collate, DataPrefetcher
@@ -154,8 +153,7 @@ if __name__ == '__main__':
             out_t = teacher(images)
         out = model(images)
         (loss_l, loss_c) = criterion_det(out, priors, targets)
-        loss_kd = criterion_kd(out_t['feature'].detach(), out['feature'], 
-            out_t['conf'].detach(), out['conf'], priors, targets)
+        loss_kd = criterion_kd(out_t, out, priors, targets)
         loss = loss_l + loss_c + loss_kd
         
         optimizer.zero_grad()

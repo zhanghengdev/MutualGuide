@@ -64,7 +64,7 @@ class COCODetection(data.Dataset):
         """ Construct an image path """
         file_name = (str(index).zfill(12) + '.jpg')
         image_path = os.path.join(self.root, name, file_name)
-        assert os.path.exists(image_path), 'Path does not exist: {}'.format(image_path)
+        # assert os.path.exists(image_path), 'Path does not exist: {}'.format(image_path)
         return image_path
 
 
@@ -146,7 +146,7 @@ class COCODetection(data.Dataset):
             )
             pbar = tqdm(enumerate(loaded_images), total=len(self.ids))
             for k, out in pbar:
-                self.imgs[k] = out()
+                self.imgs[k] = out.copy()
             self.imgs.flush()
             pbar.close()
         

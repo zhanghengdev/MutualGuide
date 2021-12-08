@@ -15,7 +15,11 @@ class HintLoss(nn.Module):
         self.multi_anchor = multi_anchor
         print('Using {} mode...'.format(self.mode))
 
-    def forward(self, fea_t, fea_s, conf_t, conf_s, priors, targets, var=None):
+    def forward(self, pred_t, pred_s, priors, targets):
+
+        loc_t, conf_t, fea_t = pred_t['loc'], pred_t['conf'], pred_t['feature']
+        loc_t, conf_t, fea_t = loc_t.detach(), conf_t.detach(), fea_t.detach()
+        loc_s, conf_s, fea_s = pred_s['loc'], pred_s['conf'], pred_s['feature']
 
         if self.mode == 'mse':
             return ((fea_s-fea_t)**2).mean() * self.factor
@@ -25,11 +29,18 @@ class HintLoss(nn.Module):
                 x1 = conf_t.sigmoid()
                 x2 = conf_s.sigmoid()
                 disagree = (x1 - x2) ** 2
-                disagree = disagree.sum(-1).unsqueeze(1).sqrt()
+                weight = disagree.sum(-1).unsqueeze(1).sqrt()
                 if self.multi_anchor:
-                    disagree = F.avg_pool1d(disagree, kernel_size=6, stride=6, padding=0)
-                disagree = disagree.permute(0,2,1).expand_as(fea_t)
-                weight = disagree / disagree.sum()
-            return (weight*((fea_s-fea_t)**2)).sum() * self.factor
+                    weight = F.avg_pool1d(weight, kernel_size=6, stride=6, padding=0)
+                weight = weight.permute(0,2,1).expand_as(fea_t)
+                weight = weight / weight.sum()
+            loss_pdf = (weight*((fea_s-fea_t)**2)).sum() * self.factor
+                    
+            loss_cls = F.binary_cross_entropy_with_logits(conf_s, x1, reduction='none') * disagree
+            loss_cls = loss_cls.sum() / (x1>0.5).float().sum()
 
+            loss_reg = F.mse_loss(loc_s, loc_t)
+
+            return loss_pdf + loss_cls + loss_reg
+            
         raise NotImplementedError

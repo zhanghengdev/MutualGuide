@@ -25,7 +25,7 @@ def multibox(fpn_level, num_anchors, num_classes, fea_channel, conv_block):
             nn.Conv2d(fea_channel, cls_channel, 1)
             )
         conf_layers.append(conf_layer)
-        dist_layer = nn.Conv2d(fea_channel, dis_channel, kernel_size=3, padding=1)
+        dist_layer = nn.Conv2d(fea_channel, dis_channel, 1)
         dist_layers.append(dist_layer)
     return (nn.ModuleList(loc_layers), nn.ModuleList(conf_layers), nn.ModuleList(dist_layers))
 
