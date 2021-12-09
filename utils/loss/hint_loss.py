@@ -39,7 +39,7 @@ class HintLoss(nn.Module):
             loss_cls = F.binary_cross_entropy_with_logits(conf_s, x1, reduction='none') * disagree
             loss_cls = loss_cls.sum() / (x1>0.5).float().sum()
 
-            loss_reg = F.mse_loss(loc_s, loc_t)
+            loss_reg = F.l1_loss(loc_s, loc_t)
 
             return loss_pdf + loss_cls + loss_reg
             

@@ -137,7 +137,7 @@ if __name__ == '__main__':
         (images, targets) = prefetcher.next()
 
         # random resize
-        if iteration < args.warm_iter or iteration >= 0.8*max_iter:
+        if iteration >= 0.8*max_iter:
             new_size = args.size
         elif args.size == 320:
             new_size = 64 * (5 + random.choice([-1,0,1]))
