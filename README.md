@@ -22,8 +22,8 @@ For more details, please refer to our [ACCV paper](https://openaccess.thecvf.com
 - Without knowledge distillation:
 
 
-| **Backbone** | **Resolution** | **AP<sup>val**<br>0.5:0.95 | **AP<sup>val**<br>0.5 | **AP<sup>val**<br>0.75 | **AP<sup>val**<br>small | **AP<sup>val**<br>medium | **AP<sup>val**<br>large | Params<br>(M) |FLOPs<br>(G)| **Speed V100**<br>(ms) |
-|:------------:|:--------------:|:--------------------------:|:---------------------:|:----------------------:|:-----------------------:|:------------------------:|:-----------------------:|:-------------:|:----------:|:----------------------:|
+| **Backbone** | **Size** | **AP<sup>val**<br>0.5:0.95 | **AP<sup>val**<br>0.5 | **AP<sup>val**<br>0.75 | **AP<sup>val**<br>small | **AP<sup>val**<br>medium | **AP<sup>val**<br>large | Params<br>(M) |FLOPs<br>(G)| **Speed V100**<br>(ms) |
+|:------------:|:--------:|:--------------------------:|:---------------------:|:----------------------:|:-----------------------:|:------------------------:|:-----------------------:|:-------------:|:----------:|:----------------------:|
 | ShuffleNet-1.0 | 320x320      | 30.5 | 47.5 | 31.9 | 12.5 | 34.2 | 46.0 |  1.88 |   1.53 |  8 |
 | ResNet-18      | 512x512      | 43.0 | 61.8 | 46.3 | 26.7 | 47.9 | 56.4 | 35.49 |  60.99 | 12 |
 | ResNet-34      | 512x512      | 45.0 | 63.7 | 48.3 | 28.5 | 50.1 | 59.7 | 45.6  |  99.72 | 16 |
@@ -33,8 +33,8 @@ For more details, please refer to our [ACCV paper](https://openaccess.thecvf.com
 
 - With knowledge distillation:
 
-| **Backbone** | **Resolution** | **AP<sup>val**<br>0.5:0.95 | **AP<sup>val**<br>0.5 | **AP<sup>val**<br>0.75 | **AP<sup>val**<br>small | **AP<sup>val**<br>medium | **AP<sup>val**<br>large | Params<br>(M) |FLOPs<br>(G)| **Speed V100**<br>(ms) |
-|:------------:|:--------------:|:--------------------------:|:---------------------:|:----------------------:|:-----------------------:|:------------------------:|:-----------------------:|:-------------:|:----------:|:----------------------:|
+| **Backbone** | **Size** | **AP<sup>val**<br>0.5:0.95 | **AP<sup>val**<br>0.5 | **AP<sup>val**<br>0.75 | **AP<sup>val**<br>small | **AP<sup>val**<br>medium | **AP<sup>val**<br>large | Params<br>(M) |FLOPs<br>(G)| **Speed V100**<br>(ms) |
+|:------------:|:--------:|:--------------------------:|:---------------------:|:----------------------:|:-----------------------:|:------------------------:|:-----------------------:|:-------------:|:----------:|:----------------------:|
 | ShuffleNet-0.5 | 320x320      | 24.1 | 39.1 | 24.6 | 9.0  | 26.3 | 36.9 |  1.16 |  0.73 |  7 |
 | ResNet-18      | 512x512      | 43.8 | 62.5 | 46.9 | 26.3 | 49.2 | 58.4 | 35.49 | 60.99 | 12 |
 | RepVGG-A1      | 512x512      | 44.9 | 63.6 | 48.5 | 28.1 | 50.7 | 58.4 | 36.22 | 74.5  | 12 |
@@ -68,7 +68,7 @@ $ ln -s /path_to_your_coco_dataset datasets/coco2017
 
 For training with [Mutual Guide](https://openaccess.thecvf.com/content/ACCV2020/html/Zhang_Localize_to_Classify_and_Classify_to_Localize_Mutual_Guidance_in_ACCV_2020_paper.html):
 ```Shell
-$ python3 train.py --neck ssd --backbone vgg16    --dataset VOC --size 320 --multi_anchor --mutual_guide
+$ python3 train.py --neck ssd --backbone vgg16    --dataset VOC --size 320 --mutual_guide
                           fpn            resnet34           COCO       512
                           pafpn          repvgg-A2          XML
                                          regnet800
@@ -78,7 +78,7 @@ $ python3 train.py --neck ssd --backbone vgg16    --dataset VOC --size 320 --mul
 
 For knowledge distillation using [PDF-Distil](https://www.bmvc2021.com/):
 ```Shell
-$ python3 distil.py --neck ssd --backbone vgg11    --dataset VOC --size 320 --multi_anchor --mutual_guide --kd pdf
+$ python3 distil.py --neck ssd --backbone vgg11    --dataset VOC --size 320 --mutual_guide --kd pdf
                            fpn            resnet18           COCO       512
                            pafpn          repvgg-A1          XML
                                           regnet400
@@ -96,7 +96,7 @@ $ python3 distil.py --neck ssd --backbone vgg11    --dataset VOC --size 320 --mu
 
 Every time you want to evaluate a trained network:
 ```Shell
-$ python3 test.py --neck ssd --backbone vgg11    --dataset VOC --size 320 --trained_model path_to_saved_weights --multi_anchor --draw
+$ python3 test.py --neck ssd --backbone vgg11    --dataset VOC --size 320 --trained_model path_to_saved_weights --draw
                          fpn            resnet18           COCO       512
                          pafpn          repvgg-A1          XML
                                         shufflenet-0.5
