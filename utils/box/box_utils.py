@@ -62,10 +62,12 @@ def mutual_match(truths, priors, regress, classif, labels, loc_t, conf_t, overla
 
     for (reg_overlap, pred_classif) in zip(reg_overlaps, pred_classifs):
         num_pos = max(1, torch.topk(reg_overlap, topk, largest=True)[0].sum().int())
+        num_pos = min(num_pos, (reg_overlap > 0).sum())
         pos_mask = torch.topk(reg_overlap, num_pos, largest=True)[1]
         reg_overlap[pos_mask] += 3.0
 
         num_pos = max(1, torch.topk(pred_classif, topk, largest=True)[0].sum().int())
+        num_pos = min(num_pos, (pred_classif > 0).sum())
         pos_mask = torch.topk(pred_classif, num_pos, largest=True)[1]
         pred_classif[pos_mask] += 3.0
 
