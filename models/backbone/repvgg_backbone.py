@@ -108,7 +108,10 @@ class REPVGGBackbone(nn.Module):
         super(REPVGGBackbone, self).__init__()
 
         self.version = version
-        if self.version == 'A1':
+        if self.version == 'A0':
+            num_blocks=[2, 4, 14, 1]
+            width_multiplier=[0.75, 0.75, 0.75, 2.5]
+        elif self.version == 'A1':
             num_blocks=[2, 4, 14, 1]
             width_multiplier=[1, 1, 1, 2.5]
         elif self.version == 'A2':

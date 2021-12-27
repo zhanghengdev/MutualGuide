@@ -12,7 +12,7 @@ import torch
 import torch.nn as nn
 import torch.backends.cudnn as cudnn
 from data import preproc_for_test
-from utils import Timer, PriorBox, Detect
+from utils import Timer, PriorBox, Detect, get_model_complexity_info
 from utils.box import SeqBoxMatcher
 cudnn.benchmark = True
 import time
@@ -34,11 +34,10 @@ parser = argparse.ArgumentParser(description='Pytorch Training')
 parser.add_argument('--neck', default='pafpn')
 parser.add_argument('--backbone', default='resnet18')
 parser.add_argument('--dataset', default='COCO')
-parser.add_argument('--multi_anchor', action='store_true')
 parser.add_argument('--seq_matcher', action='store_true')
 parser.add_argument('--base_anchor_size', default=24.0, type=float)
-parser.add_argument('--size', default=320, type=int)
-parser.add_argument('--eval_thresh', default=0.01, type=float)
+parser.add_argument('--size', default=512, type=int)
+parser.add_argument('--eval_thresh', default=0.05, type=float)
 parser.add_argument('--nms_thresh', default=0.5, type=float)
 parser.add_argument('--trained_model', help='Location to trained model')
 parser.add_argument('--draw', action='store_true', help='Draw detection results')
@@ -64,8 +63,7 @@ if __name__ == '__main__':
 
     print('Loading Network...')
     from models.teacher_detector import Detector
-    model = Detector(args.size, testset.num_classes, args.backbone, args.neck,
-        multi_anchor=args.multi_anchor).cuda()
+    model = Detector(args.size, testset.num_classes, args.backbone, args.neck).cuda()
     
     print('Loading weights from', args.trained_model)
     state_dict = torch.load(args.trained_model)
@@ -84,13 +82,11 @@ if __name__ == '__main__':
         model = torch2trt(model, [x], fp16_mode=True)
 
     print('Preparing AnchorBoxes...')
-    priors = PriorBox(args.base_anchor_size, args.size, base_size=args.size, 
-        multi_anchor=args.multi_anchor).cuda()
+    priors = PriorBox(args.base_anchor_size, args.size, base_size=args.size).cuda()
 
     print('Evaluating model complexity...')
-    from ptflops import get_model_complexity_info
-    macs, params = get_model_complexity_info(model, (3, args.size, args.size), as_strings=True, print_per_layer_stat=False, verbose=True)
-    print('{:<30}  {:<8}'.format('Computational complexity: ', macs))
+    flops, params = get_model_complexity_info(model, (3, args.size, args.size))
+    print('{:<30}  {:<8}'.format('Computational complexity: ', flops))
     print('{:<30}  {:<8}'.format('Number of parameters: ', params))
 
     print('Start Evaluation...')

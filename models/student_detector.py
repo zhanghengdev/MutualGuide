@@ -32,12 +32,12 @@ def multibox(fpn_level, num_anchors, num_classes, fea_channel, conv_block):
 
 class Detector(nn.Module):
 
-    def __init__(self, base_size, num_classes, backbone, neck, multi_anchor=True):
+    def __init__(self, base_size, num_classes, backbone, neck):
         super(Detector, self).__init__()
 
         # Params
         self.num_classes = num_classes - 1
-        self.num_anchors = 6 if multi_anchor else 1
+        self.num_anchors = 6
         self.fpn_level = 4 if base_size < 512 else 5
 
         # Backbone network

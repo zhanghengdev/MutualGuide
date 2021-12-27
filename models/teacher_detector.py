@@ -30,12 +30,12 @@ def multibox(fpn_level, num_anchors, num_classes, fea_channel, conv_block):
 
 class Detector(nn.Module):
 
-    def __init__(self, base_size, num_classes, backbone, neck, multi_anchor=True):
+    def __init__(self, base_size, num_classes, backbone, neck):
         super(Detector, self).__init__()
 
         # Params
         self.num_classes = num_classes - 1
-        self.num_anchors = 6 if multi_anchor else 1
+        self.num_anchors = 6
         self.fpn_level = 4 if base_size < 512 else 5
         
         # Backbone network
@@ -80,6 +80,12 @@ class Detector(nn.Module):
             self.backbone = VGGBackbone(depth=16)
             channels = (512, 512)
             self.fea_channel = 256
+            self.conv_block = BasicConv
+        elif backbone == 'repvgg-A0':
+            from models.backbone.repvgg_backbone import REPVGGBackbone
+            self.backbone = REPVGGBackbone(version='A0')
+            channels = (192, 1280)
+            self.fea_channel = 128
             self.conv_block = BasicConv
         elif backbone == 'repvgg-A1':
             from models.backbone.repvgg_backbone import REPVGGBackbone
