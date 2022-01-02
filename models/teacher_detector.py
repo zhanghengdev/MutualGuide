@@ -110,7 +110,7 @@ class Detector(nn.Module):
             from models.backbone.repvgg_backbone import REPVGGBackbone
             self.backbone = REPVGGBackbone(version='A1')
             self.backbone_channels = (256, 1280)
-            self.fea_channel = 256
+            self.fea_channel = 128
             self.conv_block = BasicConv
         elif backbone == 'repvgg-A2':
             from models.backbone.repvgg_backbone import REPVGGBackbone

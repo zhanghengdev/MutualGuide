@@ -159,7 +159,7 @@ class COCODetection(data.Dataset):
         if self.imgs is not None:
             img = self.imgs[index].copy()
         else:
-            img = self.pull_image(index)
+            img = self.pull_image(index, resize=True)
         img, target = preproc_for_train(img, target, self.size)
         return img, target
 

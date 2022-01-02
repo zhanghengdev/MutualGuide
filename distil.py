@@ -80,7 +80,9 @@ if __name__ == '__main__':
     print('Total trainable param of student model is : {:e}'.format(num_param))
 
     print('Loading teacher Network...')
-    if args.backbone=='repvgg-A1':
+    if args.backbone=='repvgg-A0':
+        backbone = 'repvgg-A2'
+    elif args.backbone=='repvgg-A1':
         backbone = 'repvgg-A2'
     elif args.backbone=='resnet18':
         backbone = 'resnet34'

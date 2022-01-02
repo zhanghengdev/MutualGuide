@@ -14,12 +14,12 @@ def multibox(
     num_anchors: int,
     num_classes: int,
     fea_channel: int,
+    dis_channel: int,
     conv_block: nn.Module,
 ) -> tuple:
     loc_layers, conf_layers, dist_layers = list(), list(), list()
     loc_channel = num_anchors * 4
     cls_channel = num_anchors * num_classes
-    dis_channel = fea_channel
     for _ in range(fpn_level):
         loc_layers.append(
             nn.Sequential(
@@ -68,30 +68,42 @@ class Detector(nn.Module):
             self.backbone = ResNetBackbone(depth=18)
             self.backbone_channels = (256, 512)
             self.fea_channel = 256
+            self.dis_channel = 256
             self.conv_block = BasicConv
         elif backbone == 'vgg11':
             from models.backbone.vgg_backbone import VGGBackbone
             self.backbone = VGGBackbone(depth=11)
             self.backbone_channels = (512, 512)
             self.fea_channel = 256
+            self.dis_channel = 256
+            self.conv_block = BasicConv
+        elif backbone == 'repvgg-A0':
+            from models.backbone.repvgg_backbone import REPVGGBackbone
+            self.backbone = REPVGGBackbone(version='A0')
+            self.backbone_channels = (192, 1280)
+            self.fea_channel = 128
+            self.dis_channel = 256
             self.conv_block = BasicConv
         elif backbone == 'repvgg-A1':
             from models.backbone.repvgg_backbone import REPVGGBackbone
             self.backbone = REPVGGBackbone(version='A1')
             self.backbone_channels = (256, 1280)
             self.fea_channel = 256
+            self.dis_channel = 256
             self.conv_block = BasicConv
         elif backbone == 'repvgg-B1':
             from models.backbone.repvgg_backbone import REPVGGBackbone
             self.backbone = REPVGGBackbone(version='B1')
             self.backbone_channels = (512, 2048)
             self.fea_channel = 256
+            self.dis_channel = 256
             self.conv_block = BasicConv
         elif backbone == 'shufflenet-0.5':
             from models.backbone.shufflenet_backbone import ShuffleNetBackbone
             self.backbone = ShuffleNetBackbone(width=0.5)
             self.backbone_channels = (96, 192)
             self.fea_channel = 128
+            self.dis_channel = 128
             self.conv_block = DepthwiseConv
         else:
             raise ValueError('Error: Sorry backbone {} is not supported!'.format(backbone))
@@ -111,7 +123,7 @@ class Detector(nn.Module):
 
         # Detection Head
         (self.loc, self.conf, self.dist) = multibox(
-            self.fpn_level, self.num_anchors, self.num_classes, self.fea_channel, self.conv_block,
+            self.fpn_level, self.num_anchors, self.num_classes, self.fea_channel, self.dis_channel, self.conv_block,
         )
         bias_value = 0
         for modules in self.loc:
@@ -151,7 +163,7 @@ class Detector(nn.Module):
         return {
             'loc': loc.view(loc.size(0), -1, 4), 
             'conf': conf.view(conf.size(0), -1, self.num_classes),
-            'feature': fea.view(conf.size(0), -1, self.fea_channel),
+            'feature': fea.view(conf.size(0), -1, self.dis_channel),
         }
 
 
