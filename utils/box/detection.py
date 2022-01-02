@@ -4,6 +4,7 @@
 import torch
 import torch.nn as nn
 import torchvision
+import numpy as np
 from .box_utils import decode
 
 
@@ -25,6 +26,9 @@ def Detect(
     conf_scores = conf.sigmoid()
     
     keep = conf_scores.max(1)[0] > eval_thresh
+    if not keep.any():
+        num_classes = conf.size(1)
+        return (np.empty([0, 4]), np.empty([0, num_classes])) 
     decoded_boxes=decoded_boxes[keep]
     conf_scores=conf_scores[keep]
     
