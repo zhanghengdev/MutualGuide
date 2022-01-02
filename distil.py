@@ -94,7 +94,8 @@ if __name__ == '__main__':
     from models.teacher_detector import Detector
     teacher = Detector(args.size, dataset.num_classes, backbone, neck).cuda()
     trained_model = 'weights/{}_retina_{}_{}_size{}_anchor{}_MG.pth'.format(
-            args.dataset, neck, backbone, args.size, args.base_anchor_size)
+            args.dataset, neck, backbone, args.size, args.base_anchor_size,
+    )
     print('loading weights from', trained_model)
     state_dict = torch.load(trained_model)
     teacher.load_state_dict(state_dict["model"], strict=True)
@@ -147,7 +148,7 @@ if __name__ == '__main__':
                 out_t = teacher(images)
             out = model(images)
             (loss_l, loss_c) = criterion_det(out, priors, targets)
-            loss_kd = criterion_kd(out_t, out, priors, targets)
+            loss_kd = criterion_kd(out_t, out)
             loss = loss_l + loss_c + loss_kd
         
         optimizer.zero_grad()

@@ -13,9 +13,11 @@ import pickle
 import numpy as np
 import pdb
 
-def parse_rec(filename):
+def parse_rec(
+    filename: str
+) -> list:
     """ Parse a PASCAL VOC xml file """
-    tree = ET.parse(filename)#.replace('JPEGImages','Annotations').replace('.jpg','.xml').replace('.jpeg','.xml'))
+    tree = ET.parse(filename)
     objects = []
     for obj in tree.findall('object'):
         obj_struct = {}
@@ -31,7 +33,12 @@ def parse_rec(filename):
         objects.append(obj_struct)
     return objects
 
-def voc_ap(rec, prec, use_07_metric=False):
+
+def voc_ap(
+    rec,
+    prec,
+    use_07_metric: bool = False
+) -> float:
     """ ap = voc_ap(rec, prec, [use_07_metric])
     Compute VOC AP given precision and recall.
     If use_07_metric is true, uses the
@@ -64,13 +71,16 @@ def voc_ap(rec, prec, use_07_metric=False):
         ap = np.sum((mrec[i + 1] - mrec[i]) * mpre[i + 1])
     return ap
 
-def voc_eval(detpath,
-             annopath,
-             imagesetfile,
-             classname,
-             cachedir,
-             ovthresh=0.5,
-             use_07_metric=False):
+
+def voc_eval(
+    detpath,
+    annopath,
+    imagesetfile,
+    classname,
+    cachedir,
+    ovthresh: float = 0.5,
+    use_07_metric: bool = False,
+) -> list:
     """rec, prec, ap = voc_eval(detpath,
                                 annopath,
                                 imagesetfile,

@@ -6,21 +6,25 @@ import torch.nn as nn
 import numpy as np
 
 
-def point_form(boxes):
+def point_form(
+    boxes: torch.Tensor,
+) -> torch.Tensor:
     """ Convert prior_boxes to (xmin, ymin, xmax, ymax) """
-
     return torch.cat((boxes[:, :2] - boxes[:, 2:] / 2, boxes[:, :2] + boxes[:, 2:] / 2), 1)
 
 
-def center_size(boxes):
+def center_size(
+    boxes: torch.Tensor,
+) -> torch.Tensor:
     """ Convert prior_boxes to (cx, cy, w, h) """
-
     return torch.cat(((boxes[:, 2:] + boxes[:, :2]) / 2, boxes[:, 2:] - boxes[:, :2]), 1)
 
 
-def jaccard(box_a, box_b):
+def jaccard(
+    box_a: torch.Tensor,
+    box_b: torch.Tensor,
+) -> torch.Tensor:
     """ Compute the jaccard overlap of two sets of boxes """
-
     A = box_a.size(0)
     B = box_b.size(0)
     max_xy = torch.min(box_a[:, 2:].unsqueeze(1).expand(A, B, 2), box_b[:, 2:].unsqueeze(0).expand(A, B, 2))
@@ -33,9 +37,16 @@ def jaccard(box_a, box_b):
     return inter / union  # [A,B]
 
 
-def match(truths, priors, labels, loc_t, conf_t, overlap_t, idx):
+def match(
+    truths: torch.Tensor,
+    priors: torch.Tensor,
+    labels: torch.Tensor,
+    loc_t: torch.Tensor,
+    conf_t: torch.Tensor,
+    overlap_t: torch.Tensor,
+    idx: int,
+) -> None:
     """ Match each prior box with the ground truth box """
-
     overlaps = jaccard(truths, point_form(priors))
     (best_truth_overlap, best_truth_idx) = overlaps.max(0)
     (best_prior_overlap, best_prior_idx) = overlaps.max(1)
@@ -48,9 +59,21 @@ def match(truths, priors, labels, loc_t, conf_t, overlap_t, idx):
     loc_t[idx] = truths[best_truth_idx]  # Shape: [num_priors,4]
 
 
-def mutual_match(truths, priors, regress, classif, labels, loc_t, conf_t, overlap_t, pred_t, idx, topk=15, sigma=2.0):
+def mutual_match(
+    truths: torch.Tensor,
+    priors: torch.Tensor,
+    regress: torch.Tensor,
+    classif: torch.Tensor,
+    labels: torch.Tensor,
+    loc_t: torch.Tensor,
+    conf_t: torch.Tensor,
+    overlap_t: torch.Tensor,
+    pred_t: torch.Tensor,
+    idx: int,
+    topk: int = 15,
+    sigma: float =2.0,
+) -> None:
     """Classify to regress and regress to classify, Mutual Match for label assignement """
-
     num_obj = truths.size()[0]
     reg_overlaps = jaccard(truths, decode(regress, priors))
     pred_classifs = jaccard(truths, point_form(priors))
@@ -65,7 +88,6 @@ def mutual_match(truths, priors, regress, classif, labels, loc_t, conf_t, overla
         num_pos = min(num_pos, (reg_overlap > 0).sum())
         pos_mask = torch.topk(reg_overlap, num_pos, largest=True)[1]
         reg_overlap[pos_mask] += 3.0
-
         num_pos = max(1, torch.topk(pred_classif, topk, largest=True)[0].sum().int())
         num_pos = min(num_pos, (pred_classif > 0).sum())
         pos_mask = torch.topk(pred_classif, num_pos, largest=True)[1]
@@ -81,9 +103,12 @@ def mutual_match(truths, priors, regress, classif, labels, loc_t, conf_t, overla
     loc_t[idx] = truths[best_truth_idx]  # Shape: [num_priors,4]
 
 
-def encode(matched, priors, variances=[0.1, 0.2]):
+def encode(
+    matched: torch.Tensor,
+    priors: torch.Tensor,
+    variances: list = [0.1, 0.2],
+) -> torch.Tensor:
     """ Encode from the priorbox layers to ground truth boxes """
-
     g_cxcy = (matched[:, :2] + matched[:, 2:]) / 2 - priors[:, :2]
     g_cxcy /= variances[0] * priors[:, 2:]
     g_wh = (matched[:, 2:] - matched[:, :2]) / priors[:, 2:]
@@ -92,9 +117,12 @@ def encode(matched, priors, variances=[0.1, 0.2]):
     return targets
 
 
-def decode(loc, priors, variances=[0.1, 0.2]):
+def decode(
+    loc: torch.Tensor,
+    priors: torch.Tensor,
+    variances: list = [0.1, 0.2],
+) -> torch.Tensor:
     """ Decode locations from predictions using priors """
-
     boxes = torch.cat((priors[:, :2] + loc[:, :2] * variances[0] * priors[:, 2:], 
                        priors[:, 2:] * torch.exp(loc[:, 2:] * variances[1])), 1)
     boxes[:, :2] -= boxes[:, 2:] / 2

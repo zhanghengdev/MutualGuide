@@ -7,17 +7,28 @@ import numpy as np
 class SeqBoxMatcher(object):
     """ Late fusion for video object detection """
 
-    def __init__(self, iou_thresh=0.5, semantic_thresh=0.1, seq_thresh=2):
+    def __init__(
+        self,
+        iou_thresh: float = 0.5,
+        semantic_thresh: float = 0.1,
+        seq_thresh: int = 2,
+    ) -> None:
         super(SeqBoxMatcher, self).__init__()
         self.iou_thresh = iou_thresh
         self.semantic_thresh = semantic_thresh
         self.seq_thresh = seq_thresh
         self.reset()
     
-    def reset(self):
+    def reset(
+        self,
+    ) -> None:
         self.reference = []
 
-    def update(self, boxes, scores):
+    def update(
+        self,
+        boxes: np.ndarray,
+        scores: np.ndarray,
+    ) -> list:
 
         def matrix_iou(a,b):
             """ return iou of a and b, numpy version for data augenmentation """

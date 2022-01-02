@@ -1,18 +1,29 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 
 class GFocalLoss(nn.Module):
 
-    def __init__(self, gamma=2.0, loss_weight=2.0):
+    def __init__(
+        self,
+        gamma: float = 2.0,
+        loss_weight: float = 2.0,
+     ) -> None:
         super(GFocalLoss, self).__init__()
+        
         self.gamma = gamma
         self.loss_weight = loss_weight
 
-    def forward(self, pred, target, mask=None):
+    def forward(
+        self,
+        pred: torch.Tensor,
+        target: torch.Tensor,
+        mask: torch.Tensor = None,
+    ) -> torch.Tensor:
         if mask is not None:
             pred, target = pred[mask], target[mask]
         pred_sigmoid = pred.sigmoid()

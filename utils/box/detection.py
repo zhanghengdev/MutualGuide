@@ -1,10 +1,19 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
+import torch
+import torch.nn as nn
 import torchvision
 from .box_utils import decode
 
-def Detect(predictions, prior, scale, eval_thresh=0.01, nms_thresh=0.5):
+
+def Detect(
+    predictions: torch.Tensor,
+    prior: torch.Tensor,
+    scale: torch.Tensor,
+    eval_thresh: float = 0.01,
+    nms_thresh: float = 0.5,
+) -> tuple:
     """ Detect layer at test time """
 
     (loc, conf) = predictions['loc'], predictions['conf']

@@ -7,7 +7,11 @@ from math import sqrt as sqrt
 from itertools import product as product
 
 
-def PriorBox(base_anchor, size, base_size):
+def PriorBox(
+    base_anchor: float,
+    size: int,
+    base_size: int,
+) -> torch.Tensor:
     """Predefined anchor boxes"""
     
     if base_size == 320:

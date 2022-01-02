@@ -16,7 +16,6 @@ from pycocotools.cocoeval import COCOeval
 
 
 class COCODetection(data.Dataset):
-
     """ COCO Detection Dataset Object """
 
     def __init__(self, image_sets, size, dataset_name='COCO2017', cache=True):
@@ -43,7 +42,7 @@ class COCODetection(data.Dataset):
             if image_set.find('test') != -1:
                 print('test set will not load annotations!')
             else:
-                self.annotations.extend(self._load_coco_annotations(coco_name, indexes, self._COCO))
+                self.annotations.extend(self._load_coco_annotations(indexes, self._COCO))
                 if image_set.find('val') != -1:
                     print('val set will not remove non-valid images!')
                 else:
@@ -56,6 +55,8 @@ class COCODetection(data.Dataset):
                     self.annotations = annotations
         if cache:
             self._cache_images()
+        else:
+            self.imgs = None
 
     def pull_classes(self):
         return self._classes
@@ -67,26 +68,13 @@ class COCODetection(data.Dataset):
         # assert os.path.exists(image_path), 'Path does not exist: {}'.format(image_path)
         return image_path
 
-
     def _get_ann_file(self, name):
         prefix = 'instances' if name.find('test') == -1 else 'image_info'
         return os.path.join(self.root, 'annotations', prefix + '_' + name + '.json')
 
-
-    def _load_coco_annotations(self, coco_name, indexes, _COCO):
-        cache_file=os.path.join(self.cache_path,coco_name+'_gt_roidb.pkl')
-        if os.path.exists(cache_file):
-            with open(cache_file, 'rb') as fid:
-                roidb = pickle.load(fid)
-            print('{} gt roidb loaded from {}'.format(coco_name,cache_file))
-            return roidb
-
+    def _load_coco_annotations(self, indexes, _COCO):
         gt_roidb = [self._annotation_from_index(index, _COCO) for index in indexes]
-        with open(cache_file, 'wb') as fid:
-            pickle.dump(gt_roidb,fid,pickle.HIGHEST_PROTOCOL)
-        print('wrote gt roidb to {}'.format(cache_file))
         return gt_roidb
-
 
     def _annotation_from_index(self, index, _COCO):
         """ Loads COCO bounding-box instance annotations """
@@ -122,7 +110,6 @@ class COCODetection(data.Dataset):
             res[ix, 4] = cls
 
         return res
-
 
     def _cache_images(self):
         cache_file = self.root + "/img_resized_cache_" + self.name + ".array"
@@ -254,17 +241,7 @@ class COCODetection(data.Dataset):
                 continue
             #print('Collecting {} results ({:d}/{:d})'.format(cls, cls_ind, self.num_classes ))
             coco_cat_id = self._class_to_coco_cat_id[cls]
-            results.extend(self._coco_results_one_category(all_boxes[cls_ind],
-                                                           coco_cat_id))
-            '''
-            if cls_ind ==30:
-                res_f = res_file+ '_1.json'
-                print('Writing results json to {}'.format(res_f))
-                with open(res_f, 'w') as fid:
-                    json.dump(results, fid)
-                results = []
-            '''
-        #res_f2 = res_file+'_2.json'
+            results.extend(self._coco_results_one_category(all_boxes[cls_ind], coco_cat_id))
         print('Writing results json to {}'.format(res_file))
         with open(res_file, 'w') as fid:
             json.dump(results, fid)

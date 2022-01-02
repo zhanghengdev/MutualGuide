@@ -1,7 +1,15 @@
 import math
+import torch
+import torch.nn as nn
 
 
-def adjust_learning_rate(optimizer, base_lr, iteration, warm_iter, max_iter):
+def adjust_learning_rate(
+    optimizer: torch.optim,
+    base_lr: float,
+    iteration: int,
+    warm_iter: int,
+    max_iter: int,
+) -> float:
     """ warmup + cosine lr decay """
     start_lr = base_lr / 10
     if iteration <= warm_iter:
@@ -13,7 +21,9 @@ def adjust_learning_rate(optimizer, base_lr, iteration, warm_iter, max_iter):
     return lr
 
 
-def tencent_trick(model):
+def tencent_trick(
+    model: nn.Module,
+) -> list:
     """ no weight decay for bn and conv bias """
     (decay, no_decay) = ([], [])
     for (name, param) in model.named_parameters():

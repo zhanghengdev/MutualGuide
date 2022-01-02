@@ -13,29 +13,21 @@ import pickle
 import numpy as np
 from .data_augment import preproc_for_train
 
-XMLroot = 'datasets/XML/'
-XML_CLASSES = ( '__background__', # always index 0
-    'person','bicycle','car','motorbike','aeroplane',
-    'bus','train','truck','boat','traffic light',
-    'fire hydrant','stop sign','parking meter','bench',
-    'bird','cat','dog','horse','sheep','cow','elephant',
-    'bear','zebra','giraffe','backpack','umbrella',
-    'handbag','tie','suitcase','frisbee','skis','snowboard',
-    'sports ball','kite','baseball bat','baseball glove',
-    'skateboard','surfboard','tennis racket','bottle',
-    'wine glass','cup','fork','knife','spoon','bowl',
-    'banana','apple','sandwich','orange','broccoli',
-    'carrot','hot dog','pizza','donut','cake','chair',
-    'sofa','pottedplant','bed','diningtable','toilet',
-    'tvmonitor','laptop','mouse','remote','keyboard',
-    'cell phone','microwave','oven','toaster','sink',
-    'refrigerator','book','clock','vase','scissors',
-    'teddy bear','hair drier','toothbrush')
+XML_CLASSES = ('__background__', # always index 0
+    'aeroplane', 'bicycle', 'bird', 'boat',
+    'bottle', 'bus', 'car', 'cat', 'chair',
+    'cow', 'diningtable', 'dog', 'horse',
+    'motorbike', 'person', 'pottedplant',
+    'sheep', 'sofa', 'train', 'tvmonitor')
 
 
 class XMLDetection(data.Dataset):
-    def __init__(self, image_sets, size, cache=True):
-        self.root = XMLroot
+    def __init__(
+        self,
+        image_sets: list,
+        size: float = 320, 
+    ) -> None:
+        self.root = os.path.join('datasets/', 'XML/')
         self.image_set = image_sets
         self.size = size
         self.classes = XML_CLASSES
@@ -49,26 +41,32 @@ class XMLDetection(data.Dataset):
         for line in open(self.file_name):
             self.ids.append(line.strip())
         print('Using custom dataset. Reading {}...'.format(self.file_name))
-        if cache:
-            self._cache_images()
 
-    def pull_classes(self):
+    def pull_classes(
+        self,
+    ) -> tuple:
         return self.classes
 
-    def __getitem__(self, index):
+    def __getitem__(
+        self,
+        index: int,
+    ) -> list:
         img_id = self.ids[index]
-        if self.imgs is not None:
-            img = self.imgs[index].copy()
-        else:
-            img = self.pull_image(index)
+        img = self.pull_image(index, resize=True)
         target = self.pull_anno(index)
         img, target = preproc_for_train(img, target, self.size)
         return img, target
 
-    def __len__(self):
+    def __len__(
+        self,
+    ) -> int:
         return len(self.ids)
 
-    def pull_anno(self, index):
+    def pull_anno(
+        self,
+        index: int,
+        normalize: bool = True,
+    ) -> np.ndarray:
         img_id = self.ids[index]
         target = ET.parse(self._annopath % img_id).getroot()
         res = np.empty((0,5)) 
@@ -82,55 +80,29 @@ class XMLDetection(data.Dataset):
             for i, pt in enumerate(pts):
                 cur_pt = int(bbox.find(pt).text) - 1
                 bndbox.append(cur_pt)
-            for i, pt in enumerate([width, height, width, height]):
-                bndbox[i] /= pt
+            if normalize:
+                for i, pt in enumerate([width, height, width, height]):
+                    bndbox[i] /= pt
             label_idx = self.class_to_ind[name]
             bndbox.append(label_idx)
             res = np.vstack((res,bndbox))
         return res
 
-    def pull_image(self, index, resize=False):
+    def pull_image(
+        self,
+        index: int,
+        resize: bool = False,
+    ) -> np.ndarray:
         img_id = self.ids[index]
         image = cv2.imread(self._imgpath % img_id, cv2.IMREAD_COLOR)
         if resize:
             image = cv2.resize(image, (self.size, self.size), interpolation=cv2.INTER_LINEAR)
         return image
 
-    def _cache_images(self):
-        cache_file = self.root + "/img_resized_cache_" + self.name + ".array"
-        if not os.path.exists(cache_file):
-            print(
-                "Caching images for the first time..."
-            )
-            self.imgs = np.memmap(
-                cache_file,
-                shape=(len(self.ids), self.size, self.size, 3),
-                dtype=np.uint8,
-                mode="w+",
-            )
-            from tqdm import tqdm
-            from multiprocessing.pool import ThreadPool
-
-            NUM_THREADs = min(8, os.cpu_count())
-            loaded_images = ThreadPool(NUM_THREADs).imap(
-                lambda x: self.pull_image(x, resize=True),
-                range(len(self.ids)),
-            )
-            pbar = tqdm(enumerate(loaded_images), total=len(self.ids))
-            for k, out in pbar:
-                self.imgs[k] = out.copy()
-            self.imgs.flush()
-            pbar.close()
-        
-        print("Loading cached imgs...")
-        self.imgs = np.memmap(
-            cache_file,
-            shape=(len(self.ids), self.size, self.size, 3),
-            dtype=np.uint8,
-            mode="r+",
-        )
-
-    def evaluate_detections(self, all_boxes):
+    def evaluate_detections(
+        self,
+        all_boxes: list,
+    ) -> float:
         results = []
         for thresh in np.arange(0.5,1,0.05):
             result = self.calculate_map(all_boxes, thresh)
@@ -140,7 +112,11 @@ class XMLDetection(data.Dataset):
         print('mAP results: AP50={:.3f}, AP75={:.3f}, AP={:.3f}'.format(results[0], results[5], sum(results)/10))
         return sum(results)/10
 
-    def calculate_map(self, all_boxes, thresh):
+    def calculate_map(
+        self,
+        all_boxes: list,
+        thresh: float,
+    ) -> float:
         
         aps = list()
         for j in range(1, self.num_classes):
@@ -150,7 +126,7 @@ class XMLDetection(data.Dataset):
             npos = 0
             for i in range(len(self)):
                 R = dict()
-                anno = self.pull_anno(i)
+                anno = self.pull_anno(i, normalize=False)
                 inds = np.where(anno[:, -1] == j)[0]
                 if len(inds) == 0:
                     R['bbox'] = np.empty([0, 4], dtype=np.float32)

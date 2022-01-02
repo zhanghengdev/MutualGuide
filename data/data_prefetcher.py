@@ -13,13 +13,18 @@ class DataPrefetcher:
     https://github.com/NVIDIA/apex/issues/304#issuecomment-493562789.
     """
 
-    def __init__(self, loader):
+    def __init__(
+        self,
+        loader,
+    ) -> None:
         self.loader = iter(loader)
         self.stream = torch.cuda.Stream()
         self.record_stream = DataPrefetcher._record_stream_for_image
         self.preload()
 
-    def preload(self):
+    def preload(
+        self,
+    ) -> None:
         try:
             self.next_input, self.next_target = next(self.loader)
         except StopIteration:
@@ -31,7 +36,9 @@ class DataPrefetcher:
             self.next_input = self.next_input.cuda(non_blocking=True)
             self.next_target = [anno.cuda(non_blocking=True) for anno in self.next_target]
 
-    def next(self):
+    def next(
+        self,
+    ) -> list:
         torch.cuda.current_stream().wait_stream(self.stream)
         input = self.next_input
         target = self.next_target
@@ -44,6 +51,8 @@ class DataPrefetcher:
         return input, target
 
     @staticmethod
-    def _record_stream_for_image(input):
+    def _record_stream_for_image(
+        input,
+    ) -> None:
         input.record_stream(torch.cuda.current_stream())
 

@@ -12,15 +12,24 @@ from .balanced_l1_loss import BalancedL1Loss
 
 
 class MultiBoxLoss(nn.Module):
+    """ Object Detection Loss """
 
-    def __init__(self, mutual_guide=True):
+    def __init__(
+        self,
+        mutual_guide: bool = True,
+    ) -> None:
         super(MultiBoxLoss, self).__init__()
         self.mutual_guide = mutual_guide    
         self.focal_loss = FocalLoss()
         self.gfocal_loss = GFocalLoss()
         self.l1_loss = BalancedL1Loss()
         
-    def forward(self, predictions, priors, targets):
+    def forward(
+        self,
+        predictions: dict,
+        priors: torch.Tensor,
+        targets: list,
+    ) -> tuple:
         (loc_data, conf_data) = predictions['loc'], predictions['conf']
         (num, num_priors, num_classes) = conf_data.size()
 
@@ -61,11 +70,10 @@ class MultiBoxLoss(nn.Module):
             neg = overlap_t <= 1.0
             conf_t[neg] = 0
 
-            with torch.no_grad():
-                batch_label = torch.zeros(num * num_priors, num_classes + 1).cuda().scatter_(1, conf_t.view(-1, 1), 1)
-                batch_label = batch_label[:, 1:].view(num, num_priors, num_classes)  # shape: (batch_size, num_priors, num_classes)
-                score = (overlap_t-3.0).relu().unsqueeze(-1).expand_as(batch_label)
-                batch_label = batch_label * score
+            batch_label = torch.zeros(num * num_priors, num_classes + 1).cuda().scatter_(1, conf_t.view(-1, 1), 1)
+            batch_label = batch_label[:, 1:].view(num, num_priors, num_classes)  # shape: (batch_size, num_priors, num_classes)
+            score = (overlap_t-3.0).relu().unsqueeze(-1).expand_as(batch_label)
+            batch_label = batch_label * score
 
             loss_c = self.gfocal_loss(conf_data, batch_label)
             return (loss_l, loss_c)
@@ -98,12 +106,11 @@ class MultiBoxLoss(nn.Module):
 
             # Classification Loss
             conf_t[neg] = 0
-            with torch.no_grad():
-                batch_label = torch.zeros(num * num_priors, num_classes + 1).cuda().scatter_(1, conf_t.view(-1, 1), 1)
-                batch_label = batch_label[:, 1:].view(num, num_priors, num_classes)  # shape: (batch_size, num_priors, num_classes)
-                ign = ign.unsqueeze(-1).expand_as(batch_label)  # shape: (batch_size, num_priors, num_classes)
-                batch_label[ign] *= -1
-                mask = batch_label >= 0
+            batch_label = torch.zeros(num * num_priors, num_classes + 1).cuda().scatter_(1, conf_t.view(-1, 1), 1)
+            batch_label = batch_label[:, 1:].view(num, num_priors, num_classes)  # shape: (batch_size, num_priors, num_classes)
+            ign = ign.unsqueeze(-1).expand_as(batch_label)  # shape: (batch_size, num_priors, num_classes)
+            batch_label[ign] *= -1
+            mask = batch_label >= 0
             loss_c = self.focal_loss(conf_data, batch_label, mask)
 
             return (loss_l, loss_c)

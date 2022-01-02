@@ -15,15 +15,15 @@ from .data_augment import preproc_for_train
 import xml.etree.ElementTree as ET
 
 
-VOC_CLASSES = ( '__background__', # always index 0
+VOC_CLASSES = ('__background__', # always index 0
     'aeroplane', 'bicycle', 'bird', 'boat',
     'bottle', 'bus', 'car', 'cat', 'chair',
     'cow', 'diningtable', 'dog', 'horse',
     'motorbike', 'person', 'pottedplant',
     'sheep', 'sofa', 'train', 'tvmonitor')
 
-class AnnotationTransform(object):
 
+class AnnotationTransform(object):
     """ Transforms a VOC annotation into a Tensor of bbox  """
 
     def __init__(self, keep_difficult=True):
@@ -31,10 +31,13 @@ class AnnotationTransform(object):
         self.keep_difficult = keep_difficult
 
     def __call__(self, target):
-        res = np.empty((0,5))
+        
         width = float(target.find('size').find('width').text)
         height = float(target.find('size').find('height').text)
+        
+        res = np.empty((0,5))
         for obj in target.iter('object'):
+            
             difficult = int(obj.find('difficult').text) == 1
             if not self.keep_difficult and difficult:
                 continue
@@ -48,7 +51,7 @@ class AnnotationTransform(object):
             for i, pt in enumerate([width, height, width, height]):
                 bndbox[i] /= pt
 
-            name = obj.find('name').text.lower().replace('(group)','').strip()
+            name = obj.find('name').text.lower().strip()
             label_idx = self.class_to_ind[name]
             bndbox.append(label_idx)
             res = np.vstack((res,bndbox))  # [xmin, ymin, xmax, ymax, label_ind]
@@ -57,10 +60,15 @@ class AnnotationTransform(object):
 
 
 class VOCDetection(data.Dataset):
-
     """ VOC Detection Dataset Object """
 
-    def __init__(self, image_sets, size, dataset_name='VOC0712', cache=True):
+    def __init__(
+        self,
+        image_sets: list,
+        size: int = 320,
+        dataset_name: str = 'VOC0712',
+        cache: bool = True,
+    ) -> None:
         self.root = os.path.join('datasets/', 'VOCdevkit/')
         self.image_set = image_sets
         self.size = size
@@ -78,10 +86,16 @@ class VOCDetection(data.Dataset):
         if cache:
             self._cache_images()
 
-    def pull_classes(self):
+    def pull_classes(
+        self,
+    ) -> tuple:
+
         return VOC_CLASSES
 
-    def __getitem__(self, index):
+    def __getitem__(
+        self,
+        index,
+    ) -> list:
         img_id = self.ids[index]
         if self.imgs is not None:
             img = self.imgs[index].copy()
@@ -91,22 +105,33 @@ class VOCDetection(data.Dataset):
         img, target = preproc_for_train(img, target, self.size)
         return img, target
 
-    def __len__(self):
+    def __len__(
+        self,
+    ) -> int:
         return len(self.ids)
 
-    def pull_anno(self, index):
+    def pull_anno(
+        self,
+        index: int,
+    ) -> np.ndarray:
         img_id = self.ids[index]
         target = ET.parse(self._annopath % img_id).getroot()
         return self.target_transform(target)
 
-    def pull_image(self, index, resize=False):
+    def pull_image(
+        self,
+        index: int,
+        resize: bool = False,
+    ) -> np.ndarray:
         img_id = self.ids[index]
         image = cv2.imread(self._imgpath % img_id, cv2.IMREAD_COLOR)
         if resize:
             image = cv2.resize(image, (self.size, self.size), interpolation=cv2.INTER_LINEAR)
         return image
 
-    def _cache_images(self):
+    def _cache_images(
+        self,
+    ) -> None:
         cache_file = self.root + "/img_resized_cache_" + self.name + ".array"
         if not os.path.exists(cache_file):
             print(
@@ -140,8 +165,10 @@ class VOCDetection(data.Dataset):
             mode="r+",
         )
 
-
-    def evaluate_detections(self, all_boxes):
+    def evaluate_detections(
+        self,
+        all_boxes: list,
+    ) -> float:
         output_dir = os.path.join(self.root, 'eval')
         os.makedirs(output_dir, exist_ok=True)
         self._write_voc_results_file(all_boxes)
@@ -154,7 +181,9 @@ class VOCDetection(data.Dataset):
         print('mAP results: AP50={:.3f}, AP75={:.3f}, AP={:.3f}'.format(results[0], results[5], sum(results)/10))
         return sum(results)/10
 
-    def _get_voc_results_file_template(self):
+    def _get_voc_results_file_template(
+        self,
+    ) -> str:
         filename = 'comp4_det_test' + '_{:s}.txt'
         filedir = os.path.join(
             self.root, 'results', 'VOC' + self._year, 'Main')
@@ -163,7 +192,10 @@ class VOCDetection(data.Dataset):
         path = os.path.join(filedir, filename)
         return path
 
-    def _write_voc_results_file(self, all_boxes):
+    def _write_voc_results_file(
+        self,
+        all_boxes: list,
+    ) -> None:
         for cls_ind, cls in enumerate(VOC_CLASSES):
             cls_ind = cls_ind 
             if cls == '__background__':
@@ -181,7 +213,11 @@ class VOCDetection(data.Dataset):
                                 dets[k, 0] + 1, dets[k, 1] + 1,
                                 dets[k, 2] + 1, dets[k, 3] + 1))
 
-    def _do_python_eval(self, output_dir='output', thresh=0.5):
+    def _do_python_eval(
+        self,
+        output_dir: str = 'output',
+        thresh: float = 0.5,
+    ) -> float:
         rootpath = os.path.join(self.root, 'VOC' + self._year)
         name = self.image_set[0][1]
         annopath = os.path.join(

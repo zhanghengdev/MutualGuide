@@ -8,14 +8,22 @@ import torch.nn.functional as F
 from .ssd_neck import SSDNeck
 
 
-def lateral_convs(fpn_level, fea_channel, conv_block):
+def lateral_convs(
+    fpn_level: int,
+    fea_channel: int,
+    conv_block: nn.Module,
+) -> nn.ModuleList:
     layers = []
     for _ in range(fpn_level):
         layers.append(conv_block(fea_channel, fea_channel, kernel_size=1))
     return nn.ModuleList(layers)
 
 
-def fpn_convs(fpn_level, fea_channel, conv_block):
+def fpn_convs(
+    fpn_level: int,
+    fea_channel: int,
+    conv_block: nn.Module,
+) -> nn.ModuleList:
     layers = []
     for _ in range(fpn_level):
         layers.append(conv_block(fea_channel, fea_channel, kernel_size=3, stride=1, padding=1))
@@ -23,13 +31,22 @@ def fpn_convs(fpn_level, fea_channel, conv_block):
 
 
 class FPNNeck(SSDNeck):
-
-    def __init__(self, fpn_level, channels, fea_channel, conv_block):
+    def __init__(
+        self,
+        fpn_level: int,
+        channels: list,
+        fea_channel: int,
+        conv_block: nn.Module,
+    ) -> None:
         SSDNeck.__init__(self, fpn_level, channels, fea_channel, conv_block)
+        
         self.lateral_convs = lateral_convs(self.fpn_level, fea_channel, conv_block)
         self.fpn_convs = fpn_convs(self.fpn_level, fea_channel, conv_block)
         
-    def forward(self, x):
+    def forward(
+        self,
+        x: list,
+    ) -> list:
         fpn_fea = super().forward(x)
         fpn_fea = [lateral_conv(x) for (x, lateral_conv) in zip(fpn_fea, self.lateral_convs)]
         for i in range(self.fpn_level - 1, 0, -1):

@@ -41,7 +41,6 @@ parser.add_argument('--eval_thresh', default=0.05, type=float)
 parser.add_argument('--nms_thresh', default=0.5, type=float)
 parser.add_argument('--trained_model', help='Location to trained model')
 parser.add_argument('--draw', action='store_true', help='Draw detection results')
-parser.add_argument('--trt', action='store_true', help='Using TensorRT')
 args = parser.parse_args()
 print(args)
 
@@ -57,7 +56,7 @@ if __name__ == '__main__':
         testset = COCODetection([('2017', 'val')], args.size, cache=False)
     elif args.dataset == 'XML':
         from data import XMLDetection
-        testset = XMLDetection('val', args.size, cache=False)
+        testset = XMLDetection('val', args.size)
     else:
         raise NotImplementedError('Unkown dataset {}!'.format(args.dataset))
 
@@ -73,13 +72,6 @@ if __name__ == '__main__':
             state_dict['model'].pop(k)
     model.load_state_dict(state_dict['model'], strict=True)
     model.deploy()
-
-    if args.trt:
-        print('Converting to TensorRT model...')
-        from torch2trt import torch2trt
-        model.half()
-        x = torch.randn((1, 3, args.size, args.size)).cuda().half()
-        model = torch2trt(model, [x], fp16_mode=True)
 
     print('Preparing AnchorBoxes...')
     priors = PriorBox(args.base_anchor_size, args.size, base_size=args.size).cuda()
@@ -123,8 +115,9 @@ if __name__ == '__main__':
 
         # post processing
         _t['im_nms'].tic()
-        (boxes, scores) = Detect(out, priors, scale, 
-            eval_thresh=args.eval_thresh, nms_thresh=args.nms_thresh)
+        (boxes, scores) = Detect(
+            out, priors, scale, eval_thresh=args.eval_thresh, nms_thresh=args.nms_thresh,
+        )
         if args.seq_matcher:
             boxes, scores = box_matcher.update(boxes, scores)
         for j in range(1, testset.num_classes):
