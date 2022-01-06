@@ -37,6 +37,7 @@ def jaccard(
     return inter / union  # [A,B]
 
 
+@torch.no_grad()
 def match(
     truths: torch.Tensor,
     priors: torch.Tensor,
@@ -59,6 +60,7 @@ def match(
     loc_t[idx] = truths[best_truth_idx]  # Shape: [num_priors,4]
 
 
+@torch.no_grad()
 def mutual_match(
     truths: torch.Tensor,
     priors: torch.Tensor,

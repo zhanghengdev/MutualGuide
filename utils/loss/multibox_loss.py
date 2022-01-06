@@ -36,21 +36,20 @@ class MultiBoxLoss(nn.Module):
         if self.mutual_guide:
 
             # match priors (default boxes) and ground truth boxes
-            with torch.no_grad():
-                loc_t = torch.zeros(num, num_priors, 4).cuda()
-                conf_t = torch.zeros(num, num_priors).cuda().long()
-                overlap_t = torch.zeros(num, num_priors).cuda()
-                pred_t = torch.zeros(num, num_priors).cuda()
-                for idx in range(num):
-                    truths = targets[idx][:, :-1]
-                    labels = targets[idx][:, -1].long()
-                    regress = loc_data[idx, :, :]
-                    classif = conf_data[idx, :, :]
-                    mutual_match(truths, priors, regress, classif, labels, loc_t, conf_t, overlap_t, pred_t, idx)
-                loc_t.requires_grad = False
-                conf_t.requires_grad = False
-                overlap_t.requires_grad = False
-                pred_t.requires_grad = False
+            loc_t = torch.zeros(num, num_priors, 4).cuda()
+            conf_t = torch.zeros(num, num_priors).cuda().long()
+            overlap_t = torch.zeros(num, num_priors).cuda()
+            pred_t = torch.zeros(num, num_priors).cuda()
+            for idx in range(num):
+                truths = targets[idx][:, :-1]
+                labels = targets[idx][:, -1].long()
+                regress = loc_data[idx, :, :]
+                classif = conf_data[idx, :, :]
+                mutual_match(truths, priors, regress, classif, labels, loc_t, conf_t, overlap_t, pred_t, idx)
+            loc_t.requires_grad = False
+            conf_t.requires_grad = False
+            overlap_t.requires_grad = False
+            pred_t.requires_grad = False
 
             # Localization Loss (Smooth L1)
             pos = pred_t >= 3.0
