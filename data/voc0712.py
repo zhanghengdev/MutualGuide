@@ -85,6 +85,8 @@ class VOCDetection(data.Dataset):
                 self.ids.append((rootpath, line.strip()))
         if cache:
             self._cache_images()
+        else:
+            self.imgs = None
 
     def pull_classes(
         self,
@@ -100,7 +102,7 @@ class VOCDetection(data.Dataset):
         if self.imgs is not None:
             img = self.imgs[index].copy()
         else:
-            img = self.pull_image(index)
+            img = self.pull_image(index, resize=True)
         target = self.pull_anno(index)
         img, target = preproc_for_train(img, target, self.size)
         return img, target
