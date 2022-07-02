@@ -6,7 +6,7 @@ import torch.nn as nn
 
 
 class BasicConv(nn.Module):
-    """ Basic Convolution Module """
+    """Basic Convolution Module"""
 
     def __init__(
         self,
@@ -17,18 +17,24 @@ class BasicConv(nn.Module):
         padding: int = 0,
         dilation: int = 1,
         groups: int = 1,
-        relu: bool = True,
+        bias: bool = False,
+        act: bool = True,
         bn: bool = True,
-        bias: bool = True
     ) -> None:
         super(BasicConv, self).__init__()
 
         self.conv = nn.Conv2d(
-            in_planes, out_planes, kernel_size=kernel_size, stride=stride,
-            padding=padding, dilation=dilation, groups=groups, bias=bias,
+            in_planes,
+            out_planes,
+            kernel_size=kernel_size,
+            stride=stride,
+            padding=padding,
+            dilation=dilation,
+            groups=groups,
+            bias=bias,
         )
         self.bn = nn.BatchNorm2d(out_planes) if bn else None
-        self.relu = nn.LeakyReLU(0.1, inplace=True) if relu else None
+        self.act = nn.SiLU(inplace=True) if act else None
 
     def forward(
         self,
@@ -37,8 +43,8 @@ class BasicConv(nn.Module):
         x = self.conv(x)
         if self.bn is not None:
             x = self.bn(x)
-        if self.relu is not None:
-            x = self.relu(x)
+        if self.act is not None:
+            x = self.act(x)
         return x
 
     def switch_to_deploy(
@@ -64,7 +70,9 @@ class BasicConv(nn.Module):
 
         # prepare filters
         w_conv = self.conv.weight.clone().view(self.conv.out_channels, -1)
-        w_bn = torch.diag(self.bn.weight.div(torch.sqrt(self.bn.eps + self.bn.running_var)))
+        w_bn = torch.diag(
+            self.bn.weight.div(torch.sqrt(self.bn.eps + self.bn.running_var))
+        )
         fusedconv.weight.copy_(torch.mm(w_bn, w_conv).view(fusedconv.weight.shape))
 
         # prepare spatial bias
@@ -83,7 +91,7 @@ class BasicConv(nn.Module):
 
 
 class DepthwiseConv(nn.Module):
-    """ Depthwise Convolution Module """
+    """Depthwise Convolution Module"""
 
     def __init__(
         self,
@@ -93,43 +101,41 @@ class DepthwiseConv(nn.Module):
         stride: int = 1,
         padding: int = 0,
         dilation: int = 1,
-        groups: int = 1,
-        relu: bool = True,
+        bias: bool = False,
+        act: bool = True,
         bn: bool = True,
-        bias: bool = True
     ) -> None:
         super(DepthwiseConv, self).__init__()
 
         if kernel_size == 1:
-            self.conv = nn.Conv2d(
-                in_planes, out_planes, kernel_size=kernel_size, stride=stride,
-                padding=padding, dilation=dilation, groups=groups, bias=bias,
-            )
-        elif kernel_size==3 or kernel_size==5:
-            kernel_size = 5
-            padding = 2
-            self.conv = nn.Sequential(
-                    nn.Conv2d(
-                        in_planes, in_planes, kernel_size=kernel_size, stride=stride,
-                        padding=padding, dilation=dilation, groups=in_planes, bias=bias,
-                    ),
-                    nn.BatchNorm2d(in_planes, eps=1e-5, momentum=0.01, affine=True),
-                    nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=1, padding=0, bias=False),
-            )
+            self.dconv = None
         else:
-            raise ValueError
-            
-        self.bn = nn.BatchNorm2d(out_planes) if bn else None
-        self.relu = nn.LeakyReLU(0.1, inplace=True) if relu else None
+            kernel_size, padding = 5, 2
+            self.dconv = BasicConv(
+                in_planes,
+                in_planes,
+                kernel_size=kernel_size,
+                stride=stride,
+                padding=padding,
+                dilation=dilation,
+                groups=in_planes,
+                bias=bias,
+                act=False,
+                bn=True,
+            )
+        self.pconv = BasicConv(
+            in_planes,
+            out_planes,
+            kernel_size=1,
+            act=act,
+            bn=bn,
+        )
 
     def forward(
         self,
         x: torch.Tensor,
     ) -> torch.Tensor:
-        x = self.conv(x)
-        if self.bn is not None:
-            x = self.bn(x)
-        if self.relu is not None:
-            x = self.relu(x)
+        if self.dconv is not None:
+            x = self.dconv(x)
+        x = self.pconv(x)
         return x
-

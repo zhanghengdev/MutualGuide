@@ -31,10 +31,11 @@ class DataPrefetcher:
             self.next_input = None
             self.next_target = None
             return
-
         with torch.cuda.stream(self.stream):
             self.next_input = self.next_input.cuda(non_blocking=True)
-            self.next_target = [anno.cuda(non_blocking=True) for anno in self.next_target]
+            self.next_target = [
+                anno.cuda(non_blocking=True) for anno in self.next_target
+            ]
 
     def next(
         self,
@@ -55,4 +56,3 @@ class DataPrefetcher:
         input,
     ) -> None:
         input.record_stream(torch.cuda.current_stream())
-

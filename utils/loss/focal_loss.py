@@ -7,12 +7,11 @@ import torch.nn.functional as F
 
 
 class FocalLoss(nn.Module):
-
     def __init__(
         self,
         alpha: float = 0.25,
-        gamma: float = 1.0,
-        loss_weight: float = 1.0,
+        gamma: float = 2.0,
+        loss_weight: float = 2.0,
     ) -> None:
         super(FocalLoss, self).__init__()
 
@@ -31,7 +30,12 @@ class FocalLoss(nn.Module):
         pred_sigmoid = pred.sigmoid()
         target = target.type_as(pred)
         pt = (1 - pred_sigmoid) * target + pred_sigmoid * (1 - target)
-        focal_weight = (self.alpha * target + (1 - self.alpha) * (1 - target)) * pt.pow(self.gamma)
-        loss = F.binary_cross_entropy_with_logits(pred, target, reduction='none') * focal_weight
-        loss = loss.sum() / (target==1.0).float().sum()
+        focal_weight = (self.alpha * target + (1 - self.alpha) * (1 - target)) * pt.pow(
+            self.gamma
+        )
+        loss = (
+            F.binary_cross_entropy_with_logits(pred, target, reduction="none")
+            * focal_weight
+        )
+        loss = loss.sum() / (target > 0).float().sum()
         return loss * self.loss_weight

@@ -1,93 +1,88 @@
 <img align="center" src="https://github.com/zhangheng19931123/MutualGuide/blob/master/doc/mg.svg">
 
 ## Introduction
-MutualGuide is a compact object detector specially designed for embedded devices. Comparing to existing detectors, this repo contains two key features. 
+MutualGuide is a compact object detector specially designed for edge computing devices. Comparing to existing detectors, this repo contains two key features. 
 
 Firstly, the Mutual Guidance mecanism assigns labels to the classification task based on the prediction on the localization task, and vice versa, alleviating the misalignment problem between both tasks; Secondly, the teacher-student prediction disagreements guides the knowledge transfer in a feature-based detection distillation framework, thereby reducing the performance gap between both models.
 
 For more details, please refer to our [ACCV paper](https://openaccess.thecvf.com/content/ACCV2020/html/Zhang_Localize_to_Classify_and_Classify_to_Localize_Mutual_Guidance_in_ACCV_2020_paper.html) and [BMVC paper](https://www.bmvc2021.com/).
 
 ## Planning
+- [ ] Train medium and large models.
+- [ ] Add [SIOU](https://arxiv.org/abs/2205.12740) loss.
+- [x] Add [CspDarknet](https://arxiv.org/abs/2107.08430) backbone.
 - [x] Add [RepVGG](https://arxiv.org/abs/2101.03697) backbone.
-- [x] Add [RegNet](https://arxiv.org/abs/2003.13678) backbone.
 - [x] Add [ShuffleNetV2](https://arxiv.org/abs/1807.11164) backbone.
 - [x] Add [SwinTransformer](https://arxiv.org/abs/2103.14030) backbone.
-- [x] Add **TensorRT** transform code for inference acceleration.
-- [x] Add **draw** function to plot detection results.
+- [ ] Add **TensorRT** transform code for inference acceleration.
+- [x] Add **vis** function to plot detection results.
 - [x] Add **custom dataset** training (annotations in `XML` format).
 
 
-## Benchmark
+## Model zoo
 
-- Without knowledge distillation:
-
-
-| **Backbone** | **Size** | **AP<sup>val**<br>0.5:0.95 | **AP<sup>val**<br>0.5 | **AP<sup>val**<br>0.75 | **AP<sup>val**<br>small | **AP<sup>val**<br>medium | **AP<sup>val**<br>large | Params<br>(M) |FLOPs<br>(G)| **Speed V100**<br>(ms) |
-|:------------:|:--------:|:--------------------------:|:---------------------:|:----------------------:|:-----------------------:|:------------------------:|:-----------------------:|:-------------:|:----------:|:----------------------:|
-| ShuffleNet-1.0 | 320x320      | 30.5 | 47.5 | 31.9 | 12.5 | 34.2 | 46.0 |  1.88 |   1.53 |  8 |
-| ResNet-34      | 512x512      | 45.0 | 63.7 | 48.3 | 28.5 | 50.1 | 59.7 | 45.6  |  99.72 | 16 |
-| RepVGG-A2      | 512x512      | 45.1 | 64.0 | 48.6 | 27.7 | 50.4 | 59.0 | 48.9  | 132.23 | 18 |
-
-
-
-- With knowledge distillation:
-
-| **Backbone** | **Size** | **AP<sup>val**<br>0.5:0.95 | **AP<sup>val**<br>0.5 | **AP<sup>val**<br>0.75 | **AP<sup>val**<br>small | **AP<sup>val**<br>medium | **AP<sup>val**<br>large | Params<br>(M) |FLOPs<br>(G)| **Speed V100**<br>(ms) |
-|:------------:|:--------:|:--------------------------:|:---------------------:|:----------------------:|:-----------------------:|:------------------------:|:-----------------------:|:-------------:|:----------:|:----------------------:|
-| ShuffleNet-0.5 | 320x320      | 24.1 | 39.1 | 24.6 | 9.0  | 26.3 | 36.9 |  1.16 |  0.73 |  7 |
-| ResNet-18      | 512x512      | 43.8 | 62.5 | 46.9 | 26.3 | 49.2 | 58.4 | 35.49 | 60.99 | 12 |
-| RepVGG-A0      | 512x512      | 41.9 | 60.3 | 45.4 | 25.2 | 47.5 | 55.1 | 13.54 | 35.06 |    |
-| RepVGG-A1      | 512x512      | 44.9 | 63.6 | 48.5 | 28.1 | 50.7 | 58.4 | 36.22 | 74.5  | 12 |
+|    **Backbone**     | **Size** | **AP<sup>val**<br>0.5:0.95 | **AP<sup>val**<br>0.5 | **AP<sup>val**<br>0.75 | **AP<sup>val**<br>small | **AP<sup>val**<br>medium | **AP<sup>val**<br>large | Params<br>(M) | FLOPs<br>(G) | **Speed**<br>(ms) |
+| :-----------------: | :------: | :------------------------: | :-------------------: | :--------------------: | :---------------------: | :----------------------: | :---------------------: | :-----------: | :----------: | :---------------: |
+|        SOTA         |          |                            |                       |                        |                         |                          |                         |               |
+|     PP-YOLOE-M      | 640x640  |            49.0            |         65.9          |          53.8          |          30.9           |           53.5           |          65.3           |     23.43     |    49.91     |                   |
+|       YOLOX-M       | 640x640  |            46.9            |                       |                        |                         |                          |                         |     25.3      |     73.8     |    12.3(V100)     |
+|      YOLOv5-M       | 640x640  |            45.4            |                       |                        |                         |                          |                         |     21.2      |     49.0     |     8.2(V100)     |
+|     PP-YOLOE-S      | 640x640  |            43.0            |         59.6          |          47.2          |          26.0           |           47.7           |          58.7           |     7.93      |    17.36     |                   |
+|       YOLOX-S       | 640x640  |            40.5            |                       |                        |                         |                          |                         |      9.0      |     26.8     |     9.8(V100)     |
+|      YOLOv5-S       | 640x640  |            37.4            |                       |                        |                         |                          |                         |      7.2      |     16.5     |     6.4(V100)     |
+| NanoDet-Plus-m-1.5x | 416x416  |            34.1            |                       |                        |                         |                          |                         |     2.44      |     2.97     |                   |
+|   NanoDet-Plus-m    | 416x416  |            30.4            |                       |                        |                         |                          |                         |     1.17      |     1.52     |                   |
+|        Ours         |          |                            |                       |                        |                         |                          |                         |               |
+|   cspdarknet-0.75   | 640x640  |            43.0            |         61.1          |          46.2          |          24.2           |           50.0           |          59.9           |     24.32     |    24.02     |    11.4(3060)     |
+|   cspdarknet-0.5    | 640x640  |            40.4            |         58.4          |          43.3          |          21.0           |           46.4           |          58.0           |     17.40     |    12.67     |     6.5(3060)     |
+|   shufflenet-1.5    | 640x640  |            35.7            |         53.9          |          37.9          |          16.5           |           41.3           |          53.5           |     2.55      |     2.65     |     5.6(3060)     |
+|   shufflenet-1.0    | 640x640  |            31.8            |         49.0          |          33.1          |          13.6           |           35.8           |          48.4           |     1.50      |     1.47     |     5.4(3060)     |
 
 
 **Remarks:**
 
 - The precision is measured on the COCO2017 Val dataset. 
-- **Sorry we forgot to synchronize the GPU time during the last run, so the runtime measurements were incorrect. The updated results should be correct.**
-- The inference runtime is measured by Pytorch framework (**without** TensorRT acceleration) on a Tesla V100 GPU, and the post-processing time (e.g., NMS) is **not** included (i.e., we measure the model inference time).
-- To dowload from Google cloud, go to this [link](https://drive.google.com/drive/folders/1ZNfhY1Znvg7BBZV6qCTM3DCQLjTt7mgM?usp=sharing).
-- To dowload from Baidu cloud, go to this [link](https://pan.baidu.com/s/1G9KbNmbwteiE4a2yb-JiXg) (password: `dvz7`).
+- The inference runtime is measured by Pytorch framework (**without** TensorRT acceleration) on a GTX 3060 GPU, and the post-processing time (e.g., NMS) is **not** included (i.e., we measure the model inference time).
+- To dowload from Baidu cloud, go to this [link](https://pan.baidu.com/s/16ZZUjL22XINUXpw8lNn76w) (password: `mugu`).
 
 
 
 ## Datasets
 
-First download the VOC and COCO dataset, you may find the sripts in `data/scripts/` helpful.
-Then create a folder named `datasets` and link the downloaded datasets inside:
+First download the COCO2017 dataset, you may find the sripts in `data/scripts/` helpful.
+Then modify the parameter `self.root` in `data/coco.py` to the path of COCO dataset:
 
-```Shell
-$ mkdir datasets
-$ ln -s /path_to_your_voc_dataset datasets/VOCdevkit
-$ ln -s /path_to_your_coco_dataset datasets/coco2017
+```python
+self.root = os.path.join("/home/heng/Documents/Datasets/", "COCO/")
 ```
 **Remarks:**
 
-- For training on custom dataset, first modify the dataset path `XMLroot` and categories `XML_CLASSES` in `data/xml_dataset.py`. Then apply `--dataset XML`.
+- For training on custom dataset, first modify the dataset path and categories `XML_CLASSES` in `data/xml_dataset.py`. Then apply `--dataset XML`.
 
 ## Training
 
 For training with [Mutual Guide](https://openaccess.thecvf.com/content/ACCV2020/html/Zhang_Localize_to_Classify_and_Classify_to_Localize_Mutual_Guidance_in_ACCV_2020_paper.html):
 ```Shell
-$ python3 train.py --neck ssd --backbone vgg16    --dataset VOC --size 320 --mutual_guide
-                          fpn            resnet34           COCO       512
+$ python3 train.py --neck ssd --backbone vgg16    --dataset COCO
+                          fpn            resnet34           VOC
                           pafpn          repvgg-A2          XML
-                                         regnet800
+                                         cspdarknet-0.75
                                          shufflenet-1.0
                                          swin-T
 ```
 
 For knowledge distillation using [PDF-Distil](https://www.bmvc2021.com/):
 ```Shell
-$ python3 distil.py --neck ssd --backbone vgg11    --dataset VOC --size 320 --mutual_guide --kd pdf
-                           fpn            resnet18           COCO       512
+$ python3 distil.py --neck ssd --backbone vgg11    --dataset COCO  --kd pdf
+                           fpn            resnet18           VOC
                            pafpn          repvgg-A1          XML
-                                          regnet400
+                                          cspdarknet-0.5
                                           shufflenet-0.5
 ```
 
 **Remarks:**
 
-- For training without MutualGuide, just remove the `--mutual_guide`;
+- For training without MutualGuide, just use the `--mutual_guide False`;
 - For training on custom dataset, convert your annotations into XML format and use the parameter `--dataset XML`. An example is given in `datasets/XML/`;
 - For knowledge distillation with traditional MSE loss, just use parameter `--kd mse`;
 - The default folder to save trained model is `weights/`.
@@ -96,17 +91,17 @@ $ python3 distil.py --neck ssd --backbone vgg11    --dataset VOC --size 320 --mu
 
 Every time you want to evaluate a trained network:
 ```Shell
-$ python3 test.py --neck ssd --backbone vgg11    --dataset VOC --size 320 --trained_model path_to_saved_weights --draw
-                         fpn            resnet18           COCO       512
+$ python3 test.py --neck ssd --backbone vgg11    --dataset COCO --trained_model path_to_saved_weights --vis
+                         fpn            resnet18           VOC
                          pafpn          repvgg-A1          XML
+                                        cspdarknet-0.5
                                         shufflenet-0.5
 ```
 
 **Remarks:**
 
-- It will directly print the mAP, AP50 and AP50 results on VOC2007 Test or COCO2017 Val;
-- Add parameter `--draw` to draw detection results. They will be saved in `draw/VOC/` or `draw/COCO/` or `draw/XML/`;
-- Add `--trt` to activate TensorRT acceleration.
+- It will directly print the mAP, AP50 and AP50 results on COCO2017 Val;
+- Add parameter `--vis` to draw detection results. They will be saved in `draw/VOC/` or `draw/COCO/` or `draw/XML/`;
 
 ## Citing us
 
@@ -130,4 +125,4 @@ Please cite our papers in your publications if they help your research:
 
 ## Acknowledgement
 
-This project contains pieces of code from the following projects: [mmdetection](https://github.com/open-mmlab/mmdetection), [ssd.pytorch](https://github.com/amdegroot/ssd.pytorch), [rfbnet](https://github.com/ruinmessi/RFBNet) and [yolox](https://github.com/Megvii-BaseDetection/YOLOX).
+This project contains pieces of code from the following projects: [ssd.pytorch](https://github.com/amdegroot/ssd.pytorch), [rfbnet](https://github.com/ruinmessi/RFBNet), [mmdetection](https://github.com/open-mmlab/mmdetection) and [yolox](https://github.com/Megvii-BaseDetection/YOLOX).

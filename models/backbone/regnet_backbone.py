@@ -128,7 +128,12 @@ class SimpleStemIN(ConvNormActivation):
         activation_layer: Callable[..., nn.Module],
     ) -> None:
         super().__init__(
-            width_in, width_out, kernel_size=3, stride=1, norm_layer=norm_layer, activation_layer=activation_layer
+            width_in,
+            width_out,
+            kernel_size=3,
+            stride=1,
+            norm_layer=norm_layer,
+            activation_layer=activation_layer,
         )
 
 
@@ -151,10 +156,21 @@ class BottleneckTransform(nn.Sequential):
         g = w_b // group_width
 
         layers["a"] = ConvNormActivation(
-            width_in, w_b, kernel_size=1, stride=1, norm_layer=norm_layer, activation_layer=activation_layer
+            width_in,
+            w_b,
+            kernel_size=1,
+            stride=1,
+            norm_layer=norm_layer,
+            activation_layer=activation_layer,
         )
         layers["b"] = ConvNormActivation(
-            w_b, w_b, kernel_size=3, stride=stride, groups=g, norm_layer=norm_layer, activation_layer=activation_layer
+            w_b,
+            w_b,
+            kernel_size=3,
+            stride=stride,
+            groups=g,
+            norm_layer=norm_layer,
+            activation_layer=activation_layer,
         )
 
         if se_ratio:
@@ -168,7 +184,12 @@ class BottleneckTransform(nn.Sequential):
             )
 
         layers["c"] = ConvNormActivation(
-            w_b, width_out, kernel_size=1, stride=1, norm_layer=norm_layer, activation_layer=None
+            w_b,
+            width_out,
+            kernel_size=1,
+            stride=1,
+            norm_layer=norm_layer,
+            activation_layer=None,
         )
         super().__init__(layers)
 
@@ -194,7 +215,12 @@ class ResBottleneckBlock(nn.Module):
         should_proj = (width_in != width_out) or (stride != 1)
         if should_proj:
             self.proj = ConvNormActivation(
-                width_in, width_out, kernel_size=1, stride=stride, norm_layer=norm_layer, activation_layer=None
+                width_in,
+                width_out,
+                kernel_size=1,
+                stride=stride,
+                norm_layer=norm_layer,
+                activation_layer=None,
             )
         self.f = BottleneckTransform(
             width_in,
@@ -307,7 +333,14 @@ class BlockParams:
         # Compute the block widths. Each stage has one unique block width
         widths_cont = torch.arange(depth) * w_a + w_0
         block_capacity = torch.round(torch.log(widths_cont / w_0) / math.log(w_m))
-        block_widths = (torch.round(torch.divide(w_0 * torch.pow(w_m, block_capacity), QUANT)) * QUANT).int().tolist()
+        block_widths = (
+            (
+                torch.round(torch.divide(w_0 * torch.pow(w_m, block_capacity), QUANT))
+                * QUANT
+            )
+            .int()
+            .tolist()
+        )
         num_stages = len(set(block_widths))
 
         # Convert to per stage parameters
@@ -320,7 +353,11 @@ class BlockParams:
         splits = [w != wp or r != rp for w, wp, r, rp in split_helper]
 
         stage_widths = [w for w, t in zip(block_widths, splits[:-1]) if t]
-        stage_depths = torch.diff(torch.tensor([d for d, t in enumerate(splits) if t])).int().tolist()
+        stage_depths = (
+            torch.diff(torch.tensor([d for d, t in enumerate(splits) if t]))
+            .int()
+            .tolist()
+        )
 
         strides = [STRIDE] * num_stages
         bottleneck_multipliers = [bottleneck_multiplier] * num_stages
@@ -341,7 +378,13 @@ class BlockParams:
         )
 
     def _get_expanded_params(self):
-        return zip(self.widths, self.strides, self.depths, self.group_widths, self.bottleneck_multipliers)
+        return zip(
+            self.widths,
+            self.strides,
+            self.depths,
+            self.group_widths,
+            self.bottleneck_multipliers,
+        )
 
     @staticmethod
     def _adjust_widths_groups_compatibilty(
@@ -353,7 +396,9 @@ class BlockParams:
         """
         # Compute all widths for the current settings
 
-        def _make_divisible(v: float, divisor: int, min_value: Optional[int] = None) -> int:
+        def _make_divisible(
+            v: float, divisor: int, min_value: Optional[int] = None
+        ) -> int:
             """
             This function is taken from the original tf repo.
             It ensures that all layers have a channel number that is divisible by 8
@@ -372,7 +417,9 @@ class BlockParams:
         group_widths_min = [min(g, w_bot) for g, w_bot in zip(group_widths, widths)]
 
         # Compute the adjusted widths so that stage and group widths fit
-        ws_bot = [_make_divisible(w_bot, g) for w_bot, g in zip(widths, group_widths_min)]
+        ws_bot = [
+            _make_divisible(w_bot, g) for w_bot, g in zip(widths, group_widths_min)
+        ]
         stage_widths = [int(w_bot / b) for w_bot, b in zip(ws_bot, bottleneck_ratios)]
         return stage_widths, group_widths_min
 
@@ -392,9 +439,13 @@ class RegNetBackbone(nn.Module):
 
         self.mf = mf
         if self.mf == 400:
-            block_params = BlockParams.from_init_params(depth=16, w_0=48, w_a=27.89, w_m=2.09, group_width=8, se_ratio=0.25)
+            block_params = BlockParams.from_init_params(
+                depth=16, w_0=48, w_a=27.89, w_m=2.09, group_width=8, se_ratio=0.25
+            )
         elif self.mf == 800:
-            block_params = BlockParams.from_init_params(depth=14, w_0=56, w_a=38.84, w_m=2.4, group_width=16, se_ratio=0.25)
+            block_params = BlockParams.from_init_params(
+                depth=14, w_0=56, w_a=38.84, w_m=2.4, group_width=16, se_ratio=0.25
+            )
 
         norm_layer = nn.BatchNorm2d
         block_type = ResBottleneckBlock
@@ -410,20 +461,30 @@ class RegNetBackbone(nn.Module):
 
         current_width = stem_width
 
-        for i, (width_out, stride, depth, group_width, bottleneck_multiplier) in enumerate(block_params._get_expanded_params()):
-            setattr(self, f"block{i+1}", AnyStage(
-                        current_width,
-                        width_out,
-                        stride,
-                        depth,
-                        block_type,
-                        norm_layer,
-                        activation,
-                        group_width,
-                        bottleneck_multiplier,
-                        block_params.se_ratio,
-                        stage_index=i + 1,
-                    ))
+        for i, (
+            width_out,
+            stride,
+            depth,
+            group_width,
+            bottleneck_multiplier,
+        ) in enumerate(block_params._get_expanded_params()):
+            setattr(
+                self,
+                f"block{i+1}",
+                AnyStage(
+                    current_width,
+                    width_out,
+                    stride,
+                    depth,
+                    block_type,
+                    norm_layer,
+                    activation,
+                    group_width,
+                    bottleneck_multiplier,
+                    block_params.se_ratio,
+                    stage_index=i + 1,
+                ),
+            )
             current_width = width_out
 
         if pretrained:
@@ -438,16 +499,15 @@ class RegNetBackbone(nn.Module):
         return out1, out2
 
     def load_pre_trained_weights(self) -> None:
-        arch = 'regnet_y_{}mf'.format(self.mf)
+        arch = "regnet_y_{}mf".format(self.mf)
         if arch not in model_urls:
             raise ValueError(f"No checkpoint is available for model type {arch}")
-        print('Loading Pytorch pretrained weights...')
+        print("Loading Pytorch pretrained weights...")
         state_dict = model_zoo.load_url(model_urls[arch])
         for key in list(state_dict.keys()):
-            if key.startswith('trunk_output.'):
+            if key.startswith("trunk_output."):
                 state_dict[key[13:]] = state_dict[key]
                 state_dict.pop(key)
-            if key.startswith('fc.'):
+            if key.startswith("fc."):
                 state_dict.pop(key)
         self.load_state_dict(state_dict, strict=True)
-
