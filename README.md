@@ -9,7 +9,7 @@ For more details, please refer to our [ACCV paper](https://openaccess.thecvf.com
 
 ## Planning
 - [ ] Train medium and large models.
-- [ ] Add [SIOU](https://arxiv.org/abs/2205.12740) loss.
+- [x] Add [SIOU](https://arxiv.org/abs/2205.12740) loss.
 - [x] Add [CspDarknet](https://arxiv.org/abs/2107.08430) backbone.
 - [x] Add [RepVGG](https://arxiv.org/abs/2101.03697) backbone.
 - [x] Add [ShuffleNetV2](https://arxiv.org/abs/1807.11164) backbone.
@@ -25,6 +25,8 @@ For more details, please refer to our [ACCV paper](https://openaccess.thecvf.com
 | :-------------: | :------: | :------------------------: | :-------------------: | :--------------------: | :---------------------: | :----------------------: | :---------------------: | :-----------: | :----------: | :---------------: |
 | cspdarknet-0.75 | 640x640  |            43.0            |         61.1          |          46.2          |          24.2           |           50.0           |          59.9           |     24.32     |    24.02     |    11.4(3060)     |
 | cspdarknet-0.5  | 640x640  |            40.4            |         58.4          |          43.3          |          21.0           |           46.4           |          58.0           |     17.40     |    12.67     |     6.5(3060)     |
+|    resnet18     | 640x640  |            40.4            |         58.5          |          43.3          |          19.9           |           46.5           |          58.9           |     22.09     |    22.95     |     8.5(3060)     |
+|    repvgg-A0    | 640x640  |            39.9            |         58.2          |          42.5          |          20.3           |           46.1           |          57.9           |     12.30     |    18.40     |     7.5(3060)     |
 | shufflenet-1.5  | 640x640  |            35.7            |         53.9          |          37.9          |          16.5           |           41.3           |          53.5           |     2.55      |     2.65     |     5.6(3060)     |
 | shufflenet-1.0  | 640x640  |            31.8            |         49.0          |          33.1          |          13.6           |           35.8           |          48.4           |     1.50      |     1.47     |     5.4(3060)     |
 

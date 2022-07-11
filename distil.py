@@ -65,6 +65,7 @@ def save_model(
     iteration: int,
     suffix: str,
 ) -> None:
+    os.makedirs(args.save_folder, exist_ok=True)
     save_path = os.path.join(
         args.save_folder,
         "{}_{}_{}_kd{}_size{}_anchor{}_{}_{}.pth".format(
@@ -110,8 +111,9 @@ if __name__ == "__main__":
     model = Detector(
         args.image_size, dataset.num_classes, args.backbone, args.neck, mode="student"
     ).cuda()
+    ema_model = ModelEMA(model)
     optimizer = optim.SGD(
-        tencent_trick(model), lr=args.lr, momentum=0.9, weight_decay=0.0005
+        tencent_trick(model), lr=args.lr, momentum=0.9, weight_decay=0.0005, nesterov=True
     )
 
     if args.resume_ckpt:
@@ -169,9 +171,7 @@ if __name__ == "__main__":
         )
     )
     timer = Timer()
-    ema_model = ModelEMA(model)
     scaler = torch.cuda.amp.GradScaler()
-    os.makedirs(args.save_folder, exist_ok=True)
     for iteration in range(start_iter, end_iter):
         if iteration % epoch_size == 0:
 
