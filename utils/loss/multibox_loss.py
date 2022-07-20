@@ -7,7 +7,7 @@ from ..box import match, mutual_match, encode, decode
 from .focal_loss import FocalLoss
 from .gfocal_loss import GFocalLoss
 from .balanced_l1_loss import BalancedL1Loss
-from .giou_loss import GIOULoss
+from .siou_loss import SIOULoss
 
 
 class MultiBoxLoss(nn.Module):
@@ -23,7 +23,7 @@ class MultiBoxLoss(nn.Module):
         self.focal_loss = FocalLoss()
         self.gfocal_loss = GFocalLoss()
         self.l1_loss = BalancedL1Loss()
-        self.iou_loss = GIOULoss()
+        self.iou_loss = SIOULoss()
 
     def forward(
         self,
