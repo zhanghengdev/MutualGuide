@@ -51,10 +51,7 @@ class COCODetection(data.Dataset):
             # test set will not load annotations
             if image_set.find("test") == -1:
                 self.annotations.extend(
-                    [
-                        self._annotation_from_index(index, self._COCO)
-                        for index in self.image_indexes
-                    ]
+                    [self._annotation_from_index(index) for index in self.image_indexes]
                 )
                 # val set will not remove non-valid images
                 if image_set.find("val") == -1:
@@ -83,15 +80,14 @@ class COCODetection(data.Dataset):
     def _annotation_from_index(
         self,
         index: int,
-        _COCO,
     ) -> np.ndarray:
         """Loads COCO bounding-box instance annotations"""
-        im_ann = _COCO.loadImgs(index)[0]
+        im_ann = self._COCO.loadImgs(index)[0]
         width = im_ann["width"]
         height = im_ann["height"]
 
-        annIds = _COCO.getAnnIds(imgIds=index, iscrowd=None)
-        objs = _COCO.loadAnns(annIds)
+        annIds = self._COCO.getAnnIds(imgIds=index, iscrowd=None)
+        objs = self._COCO.loadAnns(annIds)
         # Sanitize bboxes -- some are invalid
         valid_objs = []
         for obj in objs:
@@ -129,9 +125,7 @@ class COCODetection(data.Dataset):
         img_id = self.ids[index]
         image = cv2.imread(img_id, cv2.IMREAD_COLOR)
         if resize:
-            image = cv2.resize(
-                image, (self.size, self.size), interpolation=cv2.INTER_LINEAR
-            )
+            image = cv2.resize(image, (self.size, self.size))
         return image
 
     def __getitem__(

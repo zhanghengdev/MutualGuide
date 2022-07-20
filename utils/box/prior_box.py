@@ -7,7 +7,7 @@ from math import sqrt as sqrt
 from itertools import product as product
 
 
-def PriorBox(
+def get_prior_box(
     anchor_size: float,
     image_size: int,
     scales: list = (1, sqrt(2)),

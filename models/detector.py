@@ -3,6 +3,7 @@
 
 import torch
 import torch.nn as nn
+import math
 from .neck import *
 from .backbone import *
 from .base_blocks import *
@@ -85,7 +86,6 @@ class Detector(nn.Module):
             raise ValueError(
                 "Error: Sorry backbone {} is not supported!".format(backbone)
             )
-        self.backbone_channels = self.backbone.out_channels
 
         # Neck width
         if self.conv_block is BasicConv:
@@ -107,7 +107,10 @@ class Detector(nn.Module):
         else:
             raise ValueError("Error: Sorry neck {} is not supported!".format(neck))
         self.neck = neck_func(
-            self.fpn_level, self.backbone_channels, self.fea_channel, self.conv_block
+            self.fpn_level,
+            self.backbone.out_channels,
+            self.fea_channel,
+            self.conv_block,
         )
 
         # Detection Head
@@ -119,12 +122,11 @@ class Detector(nn.Module):
             self.dis_channel,
             self.conv_block,
         )
+
         bias_value = 0
         for modules in self.loc:
             torch.nn.init.normal_(modules[-1].weight, std=0.01)
             torch.nn.init.constant_(modules[-1].bias, bias_value)
-        import math
-
         prior_prob = 0.01
         bias_value = -math.log((1 - prior_prob) / prior_prob)
         for modules in self.conf:

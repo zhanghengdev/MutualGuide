@@ -11,7 +11,14 @@ import torch
 import torch.backends.cudnn as cudnn
 from data import preproc_for_test
 from models.detector import Detector
-from utils import Timer, PriorBox, Detect, SeqBoxMatcher
+from utils import (
+    Timer,
+    SeqBoxMatcher,
+    post_process,
+    get_prior_box,
+    get_model_complexity_info,
+)
+from data import COCODetection, VOCDetection, XMLDetection
 
 cudnn.benchmark = True
 
@@ -47,23 +54,21 @@ if __name__ == "__main__":
 
     print("Loading Dataset...")
     if args.dataset == "COCO":
-        from data import COCODetection
-
         testset = COCODetection([("2017", "val")], args.image_size)
     elif args.dataset == "VOC":
-        from data import VOCDetection
-
         testset = VOCDetection([("2007", "test")], args.image_size)
     elif args.dataset == "XML":
-        from data import XMLDetection
-
         testset = XMLDetection("val", args.image_size)
     else:
         raise NotImplementedError("Unkown dataset {}!".format(args.dataset))
 
     print("Loading Network...")
     model = Detector(
-        args.image_size, testset.num_classes, args.backbone, args.neck, mode="normal"
+        args.image_size,
+        testset.num_classes,
+        args.backbone,
+        args.neck,
+        mode="normal",
     ).cuda()
 
     print("Loading weights from", args.trained_model)
@@ -72,8 +77,6 @@ if __name__ == "__main__":
     model.deploy()
 
     print("Evaluating model complexity...")
-    from utils import get_model_complexity_info
-
     flops, params = get_model_complexity_info(
         model, (3, args.image_size, args.image_size)
     )
@@ -81,7 +84,7 @@ if __name__ == "__main__":
     print("{:<30}  {:<8}".format("Number of parameters: ", params))
 
     print("Preparing AnchorBoxes...")
-    priors = PriorBox(args.anchor_size, args.image_size).cuda()
+    priors = get_prior_box(args.anchor_size, args.image_size).cuda()
 
     print("Start Evaluation...")
     num_images = len(testset)
@@ -112,7 +115,7 @@ if __name__ == "__main__":
 
         # post processing
         _t["im_nms"].tic()
-        (boxes, scores) = Detect(
+        (boxes, scores) = post_process(
             out,
             priors,
             scale,
@@ -124,11 +127,9 @@ if __name__ == "__main__":
         for j in range(testset.num_classes):
             inds = np.where(scores[:, j] > args.eval_thresh)[0]
             if len(inds) == 0:
-                all_boxes[j][i] = np.empty([0, 5], dtype=np.float32)
+                all_boxes[j][i] = np.empty([0, 5])
             else:
-                all_boxes[j][i] = np.hstack(
-                    (boxes[inds], scores[inds, j : j + 1])
-                ).astype(np.float32)
+                all_boxes[j][i] = np.hstack((boxes[inds], scores[inds, j : j + 1]))
         nms_time = _t["im_nms"].toc()
 
         # vis bounding boxes on images
@@ -136,24 +137,23 @@ if __name__ == "__main__":
             for j in range(testset.num_classes):
                 c_dets = all_boxes[j][i]
                 for line in c_dets[::-1]:
-                    x1, y1, x2, y2 = (
+                    x1, y1, x2, y2, score = (
                         int(line[0]),
                         int(line[1]),
                         int(line[2]),
                         int(line[3]),
+                        float(line[4]),
                     )
-                    score = float(line[4])
                     if score > 0.25:
                         if j not in rgbs:
                             r = random.randint(0, 255)
                             g = random.randint(0, 255)
                             b = random.randint(0, 255)
                             rgbs[j] = [r, g, b]
-                        rgb = rgbs[j]
                         label = "{}{:.2f}".format(testset.pull_classes()[j], score)
-                        cv2.rectangle(img, (x1, y1), (x2, y2), rgb, 2)
+                        cv2.rectangle(img, (x1, y1), (x2, y2), rgbs[j], 2)
                         cv2.rectangle(
-                            img, (x1, y1 - 15), (x1 + len(label) * 9, y1), rgb, -1
+                            img, (x1, y1 - 15), (x1 + len(label) * 9, y1), rgbs[j], -1
                         )
                         cv2.putText(
                             img,
@@ -186,15 +186,14 @@ if __name__ == "__main__":
             cv2.imwrite(filename, img)
 
         # logging
-        if i == 10:
-            _t["im_detect"].clear()
-            _t["im_nms"].clear()
         if i % math.floor(num_images / 10) == 0 and i > 0:
             print(
-                "[{}/{}]Time results: detect={:.2f}ms, nms={:.2f}ms,".format(
+                "[{}/{}] model inference = {:.2f}ms, post process = {:.2f}ms,".format(
                     i, num_images, detect_time * 1000, nms_time * 1000
                 )
             )
+            _t["im_detect"].clear()
+            _t["im_nms"].clear()
 
     # evaluation
     testset.evaluate_detections(all_boxes)

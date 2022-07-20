@@ -93,7 +93,7 @@ $ python3 test.py --neck ssd --backbone vgg11    --dataset COCO --trained_model 
 **Remarks:**
 
 - It will directly print the mAP, AP50 and AP50 results on COCO2017 Val;
-- Add parameter `--vis` to draw detection results. They will be saved in `draw/VOC/` or `draw/COCO/` or `draw/XML/`;
+- Add parameter `--vis` to draw detection results. They will be saved in `vis/VOC/` or `vis/COCO/` or `vis/XML/`;
 
 ## Citing us
 

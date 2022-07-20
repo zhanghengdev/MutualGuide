@@ -7,7 +7,7 @@ import numpy as np
 from .box_utils import decode
 
 
-def Detect(
+def post_process(
     predictions: torch.Tensor,
     prior: torch.Tensor,
     scale: torch.Tensor,

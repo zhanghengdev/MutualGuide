@@ -13,15 +13,15 @@ from data import (
     COCODetection,
     VOCDetection,
     XMLDetection,
-    detection_collate,
     DataPrefetcher,
+    detection_collate,
 )
 from utils import (
     Timer,
-    PriorBox,
     ModelEMA,
     HintLoss,
     MultiBoxLoss,
+    get_prior_box,
     tencent_trick,
     adjust_learning_rate,
 )
@@ -95,26 +95,33 @@ if __name__ == "__main__":
     if args.dataset == "COCO":
         train_sets = [("2017", "train")]
         dataset = COCODetection(train_sets, args.image_size)
-        epoch_size = len(dataset) // args.batch_size
     elif args.dataset == "VOC":
         train_sets = [("2007", "trainval"), ("2012", "trainval")]
         dataset = VOCDetection(train_sets, args.image_size)
-        epoch_size = len(dataset) // args.batch_size
     elif args.dataset == "XML":
         dataset = XMLDetection("train", args.image_size)
-        epoch_size = len(dataset) // args.batch_size
     else:
         raise NotImplementedError("ERROR: Unkown dataset {}".format(args.dataset))
+    epoch_size = len(dataset) // args.batch_size
     end_iter = epoch_size * args.max_epoch
 
     print("Loading network...")
     model = Detector(
-        args.image_size, dataset.num_classes, args.backbone, args.neck, mode="student"
+        args.image_size,
+        dataset.num_classes,
+        args.backbone,
+        args.neck,
+        mode="student",
     ).cuda()
     ema_model = ModelEMA(model)
     optimizer = optim.SGD(
-        tencent_trick(model), lr=args.lr, momentum=0.9, weight_decay=0.0005, nesterov=True
+        tencent_trick(model),
+        lr=args.lr,
+        momentum=0.9,
+        weight_decay=0.0005,
+        nesterov=True,
     )
+    scaler = torch.cuda.amp.GradScaler()
 
     if args.resume_ckpt:
         print("Resuming checkpoint from", args.resume_ckpt)
@@ -137,7 +144,11 @@ if __name__ == "__main__":
     else:
         raise NotImplementedError
     teacher = Detector(
-        args.image_size, dataset.num_classes, backbone, args.neck, mode="teacher"
+        args.image_size,
+        dataset.num_classes,
+        backbone,
+        args.neck,
+        mode="teacher",
     ).cuda()
     teacher_ckpt = os.path.join(
         args.save_folder,
@@ -158,7 +169,7 @@ if __name__ == "__main__":
     print("Preparing criterion and anchor boxes...")
     criterion_det = MultiBoxLoss(args.mutual_guide)
     criterion_kd = HintLoss(args.kd)
-    priors = PriorBox(args.anchor_size, args.image_size).cuda()
+    priors = get_prior_box(args.anchor_size, args.image_size).cuda()
 
     print(
         "Distilating {}-{}-{}-{} on {} with {} images".format(
@@ -171,7 +182,6 @@ if __name__ == "__main__":
         )
     )
     timer = Timer()
-    scaler = torch.cuda.amp.GradScaler()
     for iteration in range(start_iter, end_iter):
         if iteration % epoch_size == 0:
 
@@ -190,9 +200,14 @@ if __name__ == "__main__":
             model.train()
 
         # traning iteratoin
-        torch.cuda.empty_cache()
         timer.tic()
-        adjust_learning_rate(optimizer, args.lr, iteration, args.warm_iter, end_iter)
+        adjust_learning_rate(
+            optimizer,
+            args.lr,
+            iteration,
+            args.warm_iter,
+            end_iter,
+        )
         (images, targets) = prefetcher.next()
 
         with torch.cuda.amp.autocast():
@@ -207,7 +222,6 @@ if __name__ == "__main__":
         scaler.scale(loss).backward()
         scaler.step(optimizer)
         scaler.update()
-
         ema_model.update(model)
         load_time = timer.toc()
 
