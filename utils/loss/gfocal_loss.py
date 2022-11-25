@@ -12,12 +12,14 @@ class GFocalLoss(nn.Module):
         alpha: float = 0.75,
         gamma: float = 2.0,
         loss_weight: float = 2.0,
+        epsilon: float = 1.0,
     ) -> None:
         super(GFocalLoss, self).__init__()
 
         self.alpha = alpha
         self.gamma = gamma
         self.loss_weight = loss_weight
+        self.epsilon = epsilon
 
     def forward(
         self,
@@ -32,13 +34,14 @@ class GFocalLoss(nn.Module):
         # focal_weight = (target - pred_sigmoid).abs().pow(self.gamma)
         focal_weight = (
             target * (target > 0.0).float()
-            + self.alpha
-            * (pred_sigmoid - target).abs().pow(self.gamma)
-            * (target == 0.0).float()
+            + self.alpha * pred_sigmoid.pow(self.gamma) * (target == 0.0).float()
         )
-        loss = (
-            F.binary_cross_entropy_with_logits(pred, target, reduction="none")
-            * focal_weight
+        pt = (
+            pred_sigmoid * (target > 0.0).float()
+            + (1 - pred_sigmoid) * (target == 0.0).float()
         )
+        loss = F.binary_cross_entropy_with_logits(
+            pred, target, reduction="none"
+        ) * focal_weight + self.epsilon * (1 - pt).pow(self.gamma + 1)
         loss = loss.sum() / (target > 0.0).float().sum()
         return loss * self.loss_weight

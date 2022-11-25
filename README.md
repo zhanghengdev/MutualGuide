@@ -17,6 +17,7 @@ For more details, please refer to our [ACCV paper](https://openaccess.thecvf.com
 - [ ] Add **TensorRT** transform code for inference acceleration.
 - [x] Add **vis** function to plot detection results.
 - [x] Add **custom dataset** training (annotations in `XML` format).
+- [x] Add [PolyLoss](https://arxiv.org/pdf/2204.12511.pdf), improve mAP by ~0.3%.
 
 
 ## Benchmark
