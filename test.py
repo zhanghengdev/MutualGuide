@@ -3,6 +3,7 @@
 
 import os
 import argparse
+import yaml
 import math
 import numpy as np
 import cv2
@@ -36,23 +37,23 @@ cudnn.benchmark = True
 ### For Reproducibility ###
 
 parser = argparse.ArgumentParser(description="Model Evluation")
-parser.add_argument("--dataset", default="COCO")
-parser.add_argument("--neck", default="pafpn")
-parser.add_argument("--backbone", default="resnet18")
-parser.add_argument("--anchor_size", default=48.0, type=float)
-parser.add_argument("--image_size", default=640, type=int)
-parser.add_argument("--eval_thresh", default=0.05, type=float)
-parser.add_argument("--nms_thresh", default=0.5, type=float)
-parser.add_argument("--trained_model", help="Location to trained model")
-parser.add_argument("--vis", action="store_true", help="vis detection results")
-parser.add_argument("--seq_matcher", action="store_true", help="Video Object Detection")
+parser.add_argument("--config", type=str)
+parser.add_argument("--dataset", default="COCO", type=str)
+parser.add_argument("--trained_model", default=None, type=str)
 args = parser.parse_args()
-print(args)
 
 
 if __name__ == "__main__":
+    
+    print("Extracting params...")
+    with open(args.config, "r") as f:
+        configs = yaml.safe_load(f)
+        for config in configs.values():
+            for key, value in config.items():
+                setattr(args, key, value)
+    print(args)
 
-    print("Loading Dataset...")
+    print("Loading dataset...")
     if args.dataset == "COCO":
         testset = COCODetection([("2017", "val")], args.image_size)
     elif args.dataset == "VOC":
@@ -62,7 +63,7 @@ if __name__ == "__main__":
     else:
         raise NotImplementedError("Unkown dataset {}!".format(args.dataset))
 
-    print("Loading Network...")
+    print("Loading network...")
     model = Detector(
         args.image_size,
         testset.num_classes,
@@ -71,7 +72,19 @@ if __name__ == "__main__":
         mode="normal",
     ).cuda()
 
-    print("Loading weights from", args.trained_model)
+    print("Loading weights from trained model...")
+    if args.trained_model is None:
+        args.trained_model = os.path.join(
+            args.save_folder,
+            "{}_{}_{}_size{}_anchor{}_{}_Final.pth".format(
+                args.dataset,
+                args.neck,
+                args.backbone,
+                args.image_size,
+                args.anchor_size,
+                "MG" if args.mutual_guide else "Retina",
+            ),
+        )
     state_dict = torch.load(args.trained_model)
     model.load_state_dict(state_dict["model"], strict=False)
     model.deploy()
@@ -83,10 +96,10 @@ if __name__ == "__main__":
     print("{:<30}  {:<8}".format("Computational complexity: ", flops))
     print("{:<30}  {:<8}".format("Number of parameters: ", params))
 
-    print("Preparing AnchorBoxes...")
+    print("Preparing anchor boxes...")
     priors = get_prior_box(args.anchor_size, args.image_size).cuda()
 
-    print("Start Evaluation...")
+    print("Start evaluation...")
     num_images = len(testset)
     all_boxes = [[None for _ in range(num_images)] for _ in range(testset.num_classes)]
     if args.seq_matcher:

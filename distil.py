@@ -3,6 +3,7 @@
 
 import os
 import argparse
+import yaml
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -43,21 +44,10 @@ cudnn.benchmark = True
 ### For Reproducibility ###
 
 parser = argparse.ArgumentParser(description="PDF Distilation")
-parser.add_argument("--dataset", default="COCO")
-parser.add_argument("--neck", default="pafpn")
-parser.add_argument("--backbone", default="resnet18")
-parser.add_argument("--anchor_size", default=48.0, type=float)
-parser.add_argument("--image_size", default=640, type=int)
-parser.add_argument("--batch_size", default=32, type=int)
-parser.add_argument("--max_epoch", default=100, type=int)
-parser.add_argument("--lr", default=1e-2, type=float)
-parser.add_argument("--warm_iter", default=500, type=int)
-parser.add_argument("--resume_ckpt", default=None)
-parser.add_argument("--save_folder", default="weights/")
-parser.add_argument("--mutual_guide", default=True, action="store_true")
-parser.add_argument("--kd", default="pdf", help="Hint loss")
+parser.add_argument("--config", type=str)
+parser.add_argument("--dataset", default="COCO", type=str)
+parser.add_argument("--resume_ckpt", default=None, type=str)
 args = parser.parse_args()
-print(args)
 
 
 def save_model(
@@ -91,6 +81,14 @@ def save_model(
 
 if __name__ == "__main__":
 
+    print("Extracting params...")
+    with open(args.config, "r") as f:
+        configs = yaml.safe_load(f)
+        for config in configs.values():
+            for key, value in config.items():
+                setattr(args, key, value)
+    print(args)
+    
     print("Loading dataset...")
     if args.dataset == "COCO":
         train_sets = [("2017", "train")]
